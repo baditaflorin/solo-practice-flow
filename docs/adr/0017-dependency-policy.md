@@ -10,7 +10,7 @@ The app uses complex capabilities that should not be custom-implemented.
 
 ## Decision
 
-Use production-oriented libraries: Vite, React, TypeScript, Zod, Yjs, idb, TanStack Query, DuckDB-WASM, Pandoc-WASM, age-encryption, noble Ed25519, ics, Vitest, Playwright, Prettier, ESLint, and gitleaks. Keep heavy modules lazy-loaded and run `npm audit` before release.
+Use production-oriented libraries: Vite, React, TypeScript, Zod, Yjs, idb, TanStack Query, DuckDB-WASM, pinned lazy Pandoc-WASM, age-encryption, noble Ed25519, ics, Vitest, Playwright, Prettier, ESLint, and gitleaks. Keep heavy modules lazy-loaded and run `npm audit` before release.
 
 ## Consequences
 

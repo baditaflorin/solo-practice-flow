@@ -10,7 +10,7 @@ The requested replacement flow names DuckDB and Pandoc, both of which have brows
 
 ## Decision
 
-Use DuckDB-WASM lazily for tax-categorized exports and Pandoc-WASM lazily for Markdown-to-HTML document conversion. Do not load either on first paint. If a WASM module fails in a constrained browser, show a clear fallback and keep plain JSON/CSV/Markdown exports available.
+Use DuckDB-WASM lazily for tax-categorized exports and Pandoc-WASM lazily from a pinned public module URL for Markdown-to-HTML document conversion. Do not load either on first paint. If a WASM module fails in a constrained browser, show a clear fallback and keep plain JSON/CSV/Markdown exports available.
 
 ## Consequences
 
