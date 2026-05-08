@@ -7,6 +7,8 @@ Local-first freelance CRM for leads, proposals, contracts, invoices, payments, a
 Solo Practice Flow is a static GitHub Pages app that replaces the early solo-consulting tool chain:
 lead capture, proposal generation, contract drafting and signing, invoices, payment tracking, and export.
 
+![Solo Practice Flow screenshot](docs/screenshot.png)
+
 ## Links
 
 Live app: https://baditaflorin.github.io/solo-practice-flow/
@@ -24,6 +26,18 @@ make dev
 make test
 make build
 ```
+
+## Local Checks
+
+```bash
+make lint
+make test
+make smoke
+npm run test:coverage
+npm audit --audit-level=high
+```
+
+Hooks are plain shell scripts in `.githooks/` and are wired with `make install-hooks`.
 
 ## Architecture
 

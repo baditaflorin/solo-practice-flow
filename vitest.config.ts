@@ -1,0 +1,18 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      include: ["src/features/practice/{calculations,documents,schemas}.ts"],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 35,
+        statements: 70,
+      },
+    },
+  },
+});

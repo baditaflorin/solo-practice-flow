@@ -1,4 +1,4 @@
-import { addDays, invoiceTotal, nextInvoiceNumber } from './calculations'
+import { addDays, invoiceTotal, nextInvoiceNumber } from "./calculations";
 import type {
   Contract,
   Invoice,
@@ -9,13 +9,14 @@ import type {
   PracticeState,
   Proposal,
   TaxCategory,
-} from './types'
+} from "./types";
 
-const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
+const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
-const todayIso = () => new Date().toISOString().slice(0, 10)
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const bulletList = (items: string[]) => items.map((item) => `- ${item}`).join('\n')
+const bulletList = (items: string[]) =>
+  items.map((item) => `- ${item}`).join("\n");
 
 export const buildProposalFromLead = (
   lead: Lead,
@@ -23,38 +24,38 @@ export const buildProposalFromLead = (
   settings: PracticeSettings,
   llmScope?: string,
 ): Proposal => {
-  const fee = lead.budget > 0 ? lead.budget : profile.defaultHourlyRate * 20
+  const fee = lead.budget > 0 ? lead.budget : profile.defaultHourlyRate * 20;
 
   return {
-    id: id('proposal'),
+    id: id("proposal"),
     leadId: lead.id,
     title: `${lead.company || lead.name} consulting sprint`,
     scope:
       llmScope?.trim() ||
       `We will turn "${lead.need}" into a focused consulting sprint with clear deliverables, weekly decision points, and a final handoff package.`,
     deliverables: [
-      'Discovery brief and success criteria',
-      'Implementation roadmap with risks and dependencies',
-      'Production-ready operating assets or technical recommendations',
-      'Final review, handoff notes, and next-step backlog',
+      "Discovery brief and success criteria",
+      "Implementation roadmap with risks and dependencies",
+      "Production-ready operating assets or technical recommendations",
+      "Final review, handoff notes, and next-step backlog",
     ],
-    timeline: '2-4 weeks from kickoff, adjusted after discovery.',
+    timeline: "2-4 weeks from kickoff, adjusted after discovery.",
     fee,
     terms: `${settings.paymentTermsDays}-day payment terms. Scope changes are estimated and approved before work begins.`,
     generatedAt: new Date().toISOString(),
-    source: llmScope?.trim() ? 'local_llm' : 'template',
-  }
-}
+    source: llmScope?.trim() ? "local_llm" : "template",
+  };
+};
 
 export const buildContractFromProposal = (
   proposal: Proposal,
   lead: Lead,
   profile: PracticeProfile,
 ): Contract => ({
-  id: id('contract'),
+  id: id("contract"),
   proposalId: proposal.id,
   title: `${proposal.title} agreement`,
-  jurisdiction: 'Mutually agreed jurisdiction',
+  jurisdiction: "Mutually agreed jurisdiction",
   createdAt: new Date().toISOString(),
   bodyMarkdown: `# ${proposal.title} Agreement
 
@@ -87,37 +88,37 @@ Work is accepted when the agreed deliverables are provided and material issues a
 ## Signature
 
 The cryptographic signature below, when present, signs the Markdown body of this agreement with Ed25519.`,
-})
+});
 
 export const buildInvoiceFromProposal = (
   state: PracticeState,
   proposal: Proposal,
   settings: PracticeSettings,
 ): Invoice => {
-  const issueDate = todayIso()
+  const issueDate = todayIso();
   const lineItems: LineItem[] = [
     {
-      id: id('line'),
+      id: id("line"),
       description: proposal.title,
       quantity: 1,
       unitPrice: proposal.fee,
-      taxCategory: 'consulting_income',
+      taxCategory: "consulting_income",
     },
-  ]
+  ];
 
   return {
-    id: id('invoice'),
+    id: id("invoice"),
     proposalId: proposal.id,
     number: nextInvoiceNumber(state),
     issueDate,
     dueDate: addDays(issueDate, settings.paymentTermsDays),
-    status: 'draft',
+    status: "draft",
     lineItems,
     amountPaid: 0,
-    paidDate: '',
-    memo: 'Generated from accepted proposal.',
-  }
-}
+    paidDate: "",
+    memo: "Generated from accepted proposal.",
+  };
+};
 
 export const renderProposalMarkdown = (
   proposal: Proposal,
@@ -146,17 +147,17 @@ ${proposal.timeline}
 
 ## Fee
 
-${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(proposal.fee)}
+${new Intl.NumberFormat("en-US", { style: "currency", currency }).format(proposal.fee)}
 
 ## Terms
 
 ${proposal.terms}
-`
+`;
 
 export const renderContractMarkdown = (contract: Contract) => {
-  const signature = contract.signature
+  const signature = contract.signature;
   if (!signature) {
-    return contract.bodyMarkdown
+    return contract.bodyMarkdown;
   }
 
   return `${contract.bodyMarkdown}
@@ -169,9 +170,9 @@ export const renderContractMarkdown = (contract: Contract) => {
 - Payload SHA-256: ${signature.payloadHash}
 - Public key: ${signature.publicKey}
 - Signature: ${signature.signature}
-- Verified locally: ${signature.verified ? 'yes' : 'no'}
-`
-}
+- Verified locally: ${signature.verified ? "yes" : "no"}
+`;
+};
 
 export const renderInvoiceMarkdown = (
   invoice: Invoice,
@@ -180,7 +181,7 @@ export const renderInvoiceMarkdown = (
   profile: PracticeProfile,
   settings: PracticeSettings,
 ) => {
-  const total = invoiceTotal(invoice)
+  const total = invoiceTotal(invoice);
   const rows = invoice.lineItems
     .map(
       (item) =>
@@ -188,7 +189,7 @@ export const renderInvoiceMarkdown = (
           item.quantity * item.unitPrice
         } |`,
     )
-    .join('\n')
+    .join("\n");
 
   return `# Invoice ${invoice.number}
 
@@ -208,20 +209,20 @@ Status: ${invoice.status}
 | --- | ---: | ---: | --- | ---: |
 ${rows}
 
-Total due: ${new Intl.NumberFormat('en-US', {
-    style: 'currency',
+Total due: ${new Intl.NumberFormat("en-US", {
+    style: "currency",
     currency: settings.currency,
   }).format(total)}
 
 Payment details: ${profile.paymentDetails}
 
 Memo: ${invoice.memo}
-`
-}
+`;
+};
 
 export const taxCategoryLabels: Record<TaxCategory, string> = {
-  consulting_income: 'Consulting income',
-  software_income: 'Software income',
-  maintenance_income: 'Maintenance income',
-  reimbursable_expense: 'Reimbursable expense',
-}
+  consulting_income: "Consulting income",
+  software_income: "Software income",
+  maintenance_income: "Maintenance income",
+  reimbursable_expense: "Reimbursable expense",
+};

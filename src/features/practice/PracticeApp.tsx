@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from "react";
 import {
   BadgeCheck,
   CalendarPlus,
@@ -12,16 +12,16 @@ import {
   RefreshCcw,
   Sparkles,
   Star,
-} from 'lucide-react'
-import { useMutation } from '@tanstack/react-query'
-import { usePracticeWorkspace } from './usePracticeWorkspace'
+} from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { usePracticeWorkspace } from "./usePracticeWorkspace";
 import {
   formatMoney,
   invoiceOutstanding,
   invoiceTotal,
   statusCounts,
   taxSummary,
-} from './calculations'
+} from "./calculations";
 import {
   buildContractFromProposal,
   buildInvoiceFromProposal,
@@ -30,7 +30,7 @@ import {
   renderInvoiceMarkdown,
   renderProposalMarkdown,
   taxCategoryLabels,
-} from './documents'
+} from "./documents";
 import type {
   Contract,
   Invoice,
@@ -39,93 +39,96 @@ import type {
   PracticeState,
   Proposal,
   TaxCategory,
-} from './types'
-import { generateProposalScopeWithLocalLlm } from '../../lib/localLlm'
-import { signMarkdown, verifyMarkdownSignature } from '../../lib/signing'
-import { encryptTextWithPassphrase } from '../../lib/ageVault'
-import { buildDuckDbTaxCsv, buildTaxRows } from '../../lib/duckdb'
-import { downloadText, toCsv } from '../../lib/downloads'
-import { markdownToStandaloneHtml } from '../../lib/pandoc'
-import { buildLeadFollowUpIcs } from '../../lib/ics'
+} from "./types";
+import { generateProposalScopeWithLocalLlm } from "../../lib/localLlm";
+import { signMarkdown, verifyMarkdownSignature } from "../../lib/signing";
+import { encryptTextWithPassphrase } from "../../lib/ageVault";
+import { buildDuckDbTaxCsv, buildTaxRows } from "../../lib/duckdb";
+import { downloadText, toCsv } from "../../lib/downloads";
+import { markdownToStandaloneHtml } from "../../lib/pandoc";
+import { buildLeadFollowUpIcs } from "../../lib/ics";
 
 interface PracticeAppProps {
-  version: string
-  commit: string
+  version: string;
+  commit: string;
 }
 
 interface LeadDraft {
-  name: string
-  company: string
-  email: string
-  source: string
-  budget: string
-  need: string
-  followUpAt: string
-  notes: string
+  name: string;
+  company: string;
+  email: string;
+  source: string;
+  budget: string;
+  need: string;
+  followUpAt: string;
+  notes: string;
 }
 
-const repoUrl = 'https://github.com/baditaflorin/solo-practice-flow'
-const paypalUrl = 'https://www.paypal.com/paypalme/florinbadita'
+const repoUrl = "https://github.com/baditaflorin/solo-practice-flow";
+const paypalUrl = "https://www.paypal.com/paypalme/florinbadita";
 
 const leadStatuses: LeadStatus[] = [
-  'new',
-  'qualified',
-  'proposal',
-  'contract',
-  'active',
-  'won',
-  'lost',
-]
+  "new",
+  "qualified",
+  "proposal",
+  "contract",
+  "active",
+  "won",
+  "lost",
+];
 
 const taxCategories: TaxCategory[] = [
-  'consulting_income',
-  'software_income',
-  'maintenance_income',
-  'reimbursable_expense',
-]
+  "consulting_income",
+  "software_income",
+  "maintenance_income",
+  "reimbursable_expense",
+];
 
-const todayIso = () => new Date().toISOString().slice(0, 10)
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const initialLeadDraft = (): LeadDraft => ({
-  name: '',
-  company: '',
-  email: '',
-  source: 'Referral',
-  budget: '5000',
-  need: '',
+  name: "",
+  company: "",
+  email: "",
+  source: "Referral",
+  budget: "5000",
+  need: "",
   followUpAt: todayIso(),
-  notes: '',
-})
+  notes: "",
+});
 
-const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
+const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const replaceById = <T extends { id: string }>(items: T[], item: T) =>
-  items.map((current) => (current.id === item.id ? item : current))
+  items.map((current) => (current.id === item.id ? item : current));
 
 const classNames = (...values: Array<string | false | null | undefined>) =>
-  values.filter(Boolean).join(' ')
+  values.filter(Boolean).join(" ");
 
 export function PracticeApp({ version, commit }: PracticeAppProps) {
-  const { state, ready, error, updateState, reset } = usePracticeWorkspace()
-  const [activeLeadId, setActiveLeadId] = useState('')
-  const [leadDraft, setLeadDraft] = useState<LeadDraft>(initialLeadDraft)
-  const [toast, setToast] = useState('Ready')
-  const [busy, setBusy] = useState('')
-  const [backupPassphrase, setBackupPassphrase] = useState('')
+  const { state, ready, error, updateState, reset } = usePracticeWorkspace();
+  const [activeLeadId, setActiveLeadId] = useState("");
+  const [leadDraft, setLeadDraft] = useState<LeadDraft>(initialLeadDraft);
+  const [toast, setToast] = useState("Ready");
+  const [busy, setBusy] = useState("");
+  const [backupPassphrase, setBackupPassphrase] = useState("");
 
-  const activeLead = state.leads.find((lead) => lead.id === activeLeadId) ?? state.leads[0]
+  const activeLead =
+    state.leads.find((lead) => lead.id === activeLeadId) ?? state.leads[0];
   const activeProposal = activeLead
     ? state.proposals.find((proposal) => proposal.leadId === activeLead.id)
-    : undefined
+    : undefined;
   const activeContract = activeProposal
-    ? state.contracts.find((contract) => contract.proposalId === activeProposal.id)
-    : undefined
+    ? state.contracts.find(
+        (contract) => contract.proposalId === activeProposal.id,
+      )
+    : undefined;
   const activeInvoice = activeProposal
     ? state.invoices.find((invoice) => invoice.proposalId === activeProposal.id)
-    : undefined
+    : undefined;
 
-  const counts = useMemo(() => statusCounts(state), [state])
-  const taxRows = useMemo(() => taxSummary(state), [state])
+  const counts = useMemo(() => statusCounts(state), [state]);
+  const taxRows = useMemo(() => taxSummary(state), [state]);
 
   const llmMutation = useMutation({
     mutationFn: (lead: Lead) =>
@@ -135,264 +138,346 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         state.settings.localLlm.endpoint,
         state.settings.localLlm.model,
       ),
-  })
+  });
 
   const saveLeadDraft = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+    event.preventDefault();
     const nextLead: Lead = {
-      id: makeId('lead'),
-      name: leadDraft.name.trim() || 'Unnamed lead',
+      id: makeId("lead"),
+      name: leadDraft.name.trim() || "Unnamed lead",
       company: leadDraft.company.trim(),
       email: leadDraft.email.trim(),
-      source: leadDraft.source.trim() || 'Direct',
-      status: 'new',
+      source: leadDraft.source.trim() || "Direct",
+      status: "new",
       budget: Number(leadDraft.budget) || 0,
-      need: leadDraft.need.trim() || 'Needs discovery.',
+      need: leadDraft.need.trim() || "Needs discovery.",
       createdAt: todayIso(),
       followUpAt: leadDraft.followUpAt || todayIso(),
       notes: leadDraft.notes.trim(),
-    }
+    };
 
     await updateState((current) => ({
       ...current,
       leads: [nextLead, ...current.leads],
-    }))
-    setActiveLeadId(nextLead.id)
-    setLeadDraft(initialLeadDraft())
-    setToast(`Lead captured: ${nextLead.company || nextLead.name}`)
-  }
+    }));
+    setActiveLeadId(nextLead.id);
+    setLeadDraft(initialLeadDraft());
+    setToast(`Lead captured: ${nextLead.company || nextLead.name}`);
+  };
 
   const updateLead = async (lead: Lead) => {
     await updateState((current) => ({
       ...current,
       leads: replaceById(current.leads, lead),
-    }))
-  }
+    }));
+  };
 
   const updateProposal = async (proposal: Proposal) => {
     await updateState((current) => ({
       ...current,
       proposals: replaceById(current.proposals, proposal),
-    }))
-  }
+    }));
+  };
 
   const updateContract = async (contract: Contract) => {
     await updateState((current) => ({
       ...current,
       contracts: replaceById(current.contracts, contract),
-    }))
-  }
+    }));
+  };
 
   const updateInvoice = async (invoice: Invoice) => {
     await updateState((current) => ({
       ...current,
       invoices: replaceById(current.invoices, invoice),
-    }))
-  }
+    }));
+  };
 
   const generateProposal = async () => {
     if (!activeLead) {
-      return
+      return;
     }
 
-    setBusy('proposal')
+    setBusy("proposal");
     try {
-      let llmScope = ''
+      let llmScope = "";
       if (state.settings.localLlm.enabled) {
         try {
-          llmScope = await llmMutation.mutateAsync(activeLead)
+          llmScope = await llmMutation.mutateAsync(activeLead);
         } catch {
-          setToast('Local LLM unavailable; template proposal used')
+          setToast("Local LLM unavailable; template proposal used");
         }
       }
 
-      const proposal = buildProposalFromLead(activeLead, state.profile, state.settings, llmScope)
+      const proposal = buildProposalFromLead(
+        activeLead,
+        state.profile,
+        state.settings,
+        llmScope,
+      );
       await updateState((current) => ({
         ...current,
-        leads: replaceById(current.leads, { ...activeLead, status: 'proposal' }),
-        proposals: [proposal, ...current.proposals.filter((item) => item.leadId !== activeLead.id)],
-      }))
-      setToast(`Proposal generated from ${proposal.source}`)
+        leads: replaceById(current.leads, {
+          ...activeLead,
+          status: "proposal",
+        }),
+        proposals: [
+          proposal,
+          ...current.proposals.filter((item) => item.leadId !== activeLead.id),
+        ],
+      }));
+      setToast(`Proposal generated from ${proposal.source}`);
     } finally {
-      setBusy('')
+      setBusy("");
     }
-  }
+  };
 
   const generateContract = async () => {
     if (!activeLead || !activeProposal) {
-      return
+      return;
     }
 
-    const contract = buildContractFromProposal(activeProposal, activeLead, state.profile)
+    const contract = buildContractFromProposal(
+      activeProposal,
+      activeLead,
+      state.profile,
+    );
     await updateState((current) => ({
       ...current,
-      leads: replaceById(current.leads, { ...activeLead, status: 'contract' }),
+      leads: replaceById(current.leads, { ...activeLead, status: "contract" }),
       contracts: [
         contract,
-        ...current.contracts.filter((item) => item.proposalId !== activeProposal.id),
+        ...current.contracts.filter(
+          (item) => item.proposalId !== activeProposal.id,
+        ),
       ],
-    }))
-    setToast('Contract drafted')
-  }
+    }));
+    setToast("Contract drafted");
+  };
 
   const signContract = async () => {
     if (!activeContract) {
-      return
+      return;
     }
 
-    setBusy('signature')
+    setBusy("signature");
     try {
-      const signature = await signMarkdown(activeContract.bodyMarkdown, state.profile.ownerName)
-      await updateContract({ ...activeContract, signature })
-      setToast('Contract signed and verified locally')
+      const signature = await signMarkdown(
+        activeContract.bodyMarkdown,
+        state.profile.ownerName,
+      );
+      await updateContract({ ...activeContract, signature });
+      setToast("Contract signed and verified locally");
     } finally {
-      setBusy('')
+      setBusy("");
     }
-  }
+  };
 
   const verifyContract = async () => {
     if (!activeContract?.signature) {
-      return
+      return;
     }
 
-    const verified = await verifyMarkdownSignature(activeContract.bodyMarkdown, activeContract.signature)
+    const verified = await verifyMarkdownSignature(
+      activeContract.bodyMarkdown,
+      activeContract.signature,
+    );
     await updateContract({
       ...activeContract,
       signature: { ...activeContract.signature, verified },
-    })
-    setToast(verified ? 'Signature verified' : 'Signature does not match current contract')
-  }
+    });
+    setToast(
+      verified
+        ? "Signature verified"
+        : "Signature does not match current contract",
+    );
+  };
 
   const generateInvoice = async () => {
     if (!activeProposal) {
-      return
+      return;
     }
 
-    const invoice = buildInvoiceFromProposal(state, activeProposal, state.settings)
+    const invoice = buildInvoiceFromProposal(
+      state,
+      activeProposal,
+      state.settings,
+    );
     await updateState((current) => ({
       ...current,
-      invoices: [invoice, ...current.invoices.filter((item) => item.proposalId !== activeProposal.id)],
-    }))
-    setToast(`Invoice ${invoice.number} drafted`)
-  }
+      invoices: [
+        invoice,
+        ...current.invoices.filter(
+          (item) => item.proposalId !== activeProposal.id,
+        ),
+      ],
+    }));
+    setToast(`Invoice ${invoice.number} drafted`);
+  };
 
   const exportBackup = () => {
     downloadText(
       `solo-practice-flow-backup-${todayIso()}.json`,
       JSON.stringify(state, null, 2),
-      'application/json',
-    )
-    setToast('JSON backup downloaded')
-  }
+      "application/json",
+    );
+    setToast("JSON backup downloaded");
+  };
 
   const exportEncryptedBackup = async () => {
     if (!backupPassphrase) {
-      setToast('Enter a backup passphrase first')
-      return
+      setToast("Enter a backup passphrase first");
+      return;
     }
 
-    setBusy('age')
+    setBusy("age");
     try {
-      const encrypted = await encryptTextWithPassphrase(JSON.stringify(state, null, 2), backupPassphrase)
-      downloadText(`solo-practice-flow-backup-${todayIso()}.age`, encrypted, 'text/plain')
-      setToast('age-encrypted backup downloaded')
+      const encrypted = await encryptTextWithPassphrase(
+        JSON.stringify(state, null, 2),
+        backupPassphrase,
+      );
+      downloadText(
+        `solo-practice-flow-backup-${todayIso()}.age`,
+        encrypted,
+        "text/plain",
+      );
+      setToast("age-encrypted backup downloaded");
     } finally {
-      setBusy('')
+      setBusy("");
     }
-  }
+  };
 
   const exportTaxCsv = () => {
-    downloadText(`solo-practice-flow-tax-${state.settings.taxYear}.csv`, toCsv(buildTaxRows(state)), 'text/csv')
-    setToast('Tax CSV downloaded')
-  }
+    downloadText(
+      `solo-practice-flow-tax-${state.settings.taxYear}.csv`,
+      toCsv(buildTaxRows(state)),
+      "text/csv",
+    );
+    setToast("Tax CSV downloaded");
+  };
 
   const exportDuckDbCsv = async () => {
-    setBusy('duckdb')
+    setBusy("duckdb");
     try {
-      const csv = await buildDuckDbTaxCsv(state)
-      downloadText(`solo-practice-flow-duckdb-tax-${state.settings.taxYear}.csv`, csv, 'text/csv')
-      setToast('DuckDB tax report downloaded')
+      const csv = await buildDuckDbTaxCsv(state);
+      downloadText(
+        `solo-practice-flow-duckdb-tax-${state.settings.taxYear}.csv`,
+        csv,
+        "text/csv",
+      );
+      setToast("DuckDB tax report downloaded");
     } catch {
-      exportTaxCsv()
-      setToast('DuckDB unavailable; fallback CSV downloaded')
+      exportTaxCsv();
+      setToast("DuckDB unavailable; fallback CSV downloaded");
     } finally {
-      setBusy('')
+      setBusy("");
     }
-  }
+  };
 
   const currentMarkdown = () => {
     if (!activeLead || !activeProposal) {
-      return ''
+      return "";
     }
     if (activeContract) {
-      return renderContractMarkdown(activeContract)
+      return renderContractMarkdown(activeContract);
     }
     if (activeInvoice) {
-      return renderInvoiceMarkdown(activeInvoice, activeProposal, activeLead, state.profile, state.settings)
+      return renderInvoiceMarkdown(
+        activeInvoice,
+        activeProposal,
+        activeLead,
+        state.profile,
+        state.settings,
+      );
     }
-    return renderProposalMarkdown(activeProposal, activeLead, state.profile, state.settings.currency)
-  }
+    return renderProposalMarkdown(
+      activeProposal,
+      activeLead,
+      state.profile,
+      state.settings.currency,
+    );
+  };
 
   const exportMarkdown = () => {
-    const markdown = currentMarkdown()
+    const markdown = currentMarkdown();
     if (!markdown) {
-      setToast('Generate a proposal first')
-      return
+      setToast("Generate a proposal first");
+      return;
     }
-    downloadText(`solo-practice-flow-document-${todayIso()}.md`, markdown, 'text/markdown')
-    setToast('Markdown document downloaded')
-  }
+    downloadText(
+      `solo-practice-flow-document-${todayIso()}.md`,
+      markdown,
+      "text/markdown",
+    );
+    setToast("Markdown document downloaded");
+  };
 
   const exportHtml = async () => {
-    const markdown = currentMarkdown()
+    const markdown = currentMarkdown();
     if (!markdown) {
-      setToast('Generate a proposal first')
-      return
+      setToast("Generate a proposal first");
+      return;
     }
 
-    setBusy('pandoc')
+    setBusy("pandoc");
     try {
-      const html = await markdownToStandaloneHtml(markdown)
-      downloadText(`solo-practice-flow-document-${todayIso()}.html`, html, 'text/html')
-      setToast('Pandoc HTML document downloaded')
+      const html = await markdownToStandaloneHtml(markdown);
+      downloadText(
+        `solo-practice-flow-document-${todayIso()}.html`,
+        html,
+        "text/html",
+      );
+      setToast("Pandoc HTML document downloaded");
     } finally {
-      setBusy('')
+      setBusy("");
     }
-  }
+  };
 
   const exportIcs = async () => {
     if (!activeLead) {
-      return
+      return;
     }
 
-    const ics = await buildLeadFollowUpIcs(activeLead)
-    downloadText(`follow-up-${activeLead.company || activeLead.name}.ics`, ics, 'text/calendar')
-    setToast('ICS reminder downloaded')
-  }
+    const ics = await buildLeadFollowUpIcs(activeLead);
+    downloadText(
+      `follow-up-${activeLead.company || activeLead.name}.ics`,
+      ics,
+      "text/calendar",
+    );
+    setToast("ICS reminder downloaded");
+  };
 
-  const updateProfile = async (field: keyof PracticeState['profile'], value: string | number) => {
+  const updateProfile = async (
+    field: keyof PracticeState["profile"],
+    value: string | number,
+  ) => {
     await updateState((current) => ({
       ...current,
       profile: { ...current.profile, [field]: value },
-    }))
-  }
+    }));
+  };
 
-  const updateSettings = async (field: keyof PracticeState['settings'], value: string | number) => {
+  const updateSettings = async (
+    field: keyof PracticeState["settings"],
+    value: string | number,
+  ) => {
     await updateState((current) => ({
       ...current,
       settings: { ...current.settings, [field]: value },
-    }))
-  }
+    }));
+  };
 
-  const setLocalLlm = async (patch: Partial<PracticeState['settings']['localLlm']>) => {
+  const setLocalLlm = async (
+    patch: Partial<PracticeState["settings"]["localLlm"]>,
+  ) => {
     await updateState((current) => ({
       ...current,
       settings: {
         ...current.settings,
         localLlm: { ...current.settings.localLlm, ...patch },
       },
-    }))
-  }
+    }));
+  };
 
   if (error) {
     return (
@@ -402,7 +487,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           <p>{error}</p>
         </section>
       </main>
-    )
+    );
   }
 
   return (
@@ -413,11 +498,21 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           <h1>Solo Practice Flow</h1>
         </div>
         <nav aria-label="Project links" className="top-actions">
-          <a href={repoUrl} target="_blank" rel="noreferrer" title="Open GitHub repository">
+          <a
+            href={repoUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="Open GitHub repository"
+          >
             <Star aria-hidden="true" size={18} />
             Star repo
           </a>
-          <a href={paypalUrl} target="_blank" rel="noreferrer" title="Support with PayPal">
+          <a
+            href={paypalUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="Support with PayPal"
+          >
             <HandCoins aria-hidden="true" size={18} />
             PayPal
           </a>
@@ -443,7 +538,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
       </section>
 
       <section className="workspace-grid" aria-busy={!ready}>
-        <aside className="panel lead-panel" aria-label="Lead capture and pipeline">
+        <aside
+          className="panel lead-panel"
+          aria-label="Lead capture and pipeline"
+        >
           <div className="panel-heading">
             <PanelLeft aria-hidden="true" size={18} />
             <h2>Pipeline</h2>
@@ -454,7 +552,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               Contact
               <input
                 value={leadDraft.name}
-                onChange={(event) => setLeadDraft({ ...leadDraft, name: event.target.value })}
+                onChange={(event) =>
+                  setLeadDraft({ ...leadDraft, name: event.target.value })
+                }
                 placeholder="Client name"
               />
             </label>
@@ -462,7 +562,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               Company
               <input
                 value={leadDraft.company}
-                onChange={(event) => setLeadDraft({ ...leadDraft, company: event.target.value })}
+                onChange={(event) =>
+                  setLeadDraft({ ...leadDraft, company: event.target.value })
+                }
                 placeholder="Company"
               />
             </label>
@@ -471,7 +573,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               <input
                 type="email"
                 value={leadDraft.email}
-                onChange={(event) => setLeadDraft({ ...leadDraft, email: event.target.value })}
+                onChange={(event) =>
+                  setLeadDraft({ ...leadDraft, email: event.target.value })
+                }
                 placeholder="client@example.com"
               />
             </label>
@@ -480,7 +584,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 Source
                 <input
                   value={leadDraft.source}
-                  onChange={(event) => setLeadDraft({ ...leadDraft, source: event.target.value })}
+                  onChange={(event) =>
+                    setLeadDraft({ ...leadDraft, source: event.target.value })
+                  }
                 />
               </label>
               <label>
@@ -489,7 +595,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   type="number"
                   min="0"
                   value={leadDraft.budget}
-                  onChange={(event) => setLeadDraft({ ...leadDraft, budget: event.target.value })}
+                  onChange={(event) =>
+                    setLeadDraft({ ...leadDraft, budget: event.target.value })
+                  }
                 />
               </label>
             </div>
@@ -497,7 +605,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               Need
               <textarea
                 value={leadDraft.need}
-                onChange={(event) => setLeadDraft({ ...leadDraft, need: event.target.value })}
+                onChange={(event) =>
+                  setLeadDraft({ ...leadDraft, need: event.target.value })
+                }
                 rows={3}
                 placeholder="What outcome are they buying?"
               />
@@ -508,7 +618,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 <input
                   type="date"
                   value={leadDraft.followUpAt}
-                  onChange={(event) => setLeadDraft({ ...leadDraft, followUpAt: event.target.value })}
+                  onChange={(event) =>
+                    setLeadDraft({
+                      ...leadDraft,
+                      followUpAt: event.target.value,
+                    })
+                  }
                 />
               </label>
               <button type="submit" className="primary-button">
@@ -523,12 +638,16 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               <button
                 key={lead.id}
                 type="button"
-                className={classNames('lead-card', activeLead?.id === lead.id && 'active')}
+                className={classNames(
+                  "lead-card",
+                  activeLead?.id === lead.id && "active",
+                )}
                 onClick={() => setActiveLeadId(lead.id)}
               >
                 <span>{lead.company || lead.name}</span>
                 <small>
-                  {lead.status} · {formatMoney(lead.budget, state.settings.currency)}
+                  {lead.status} ·{" "}
+                  {formatMoney(lead.budget, state.settings.currency)}
                 </small>
               </button>
             ))}
@@ -539,7 +658,11 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           <div className="selected-lead">
             <div>
               <p className="eyebrow">Active client</p>
-              <h2>{activeLead ? activeLead.company || activeLead.name : 'No lead selected'}</h2>
+              <h2>
+                {activeLead
+                  ? activeLead.company || activeLead.name
+                  : "No lead selected"}
+              </h2>
               <p>{activeLead?.need}</p>
             </div>
             {activeLead ? (
@@ -547,7 +670,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 aria-label="Lead status"
                 value={activeLead.status}
                 onChange={(event) =>
-                  updateLead({ ...activeLead, status: event.target.value as LeadStatus })
+                  updateLead({
+                    ...activeLead,
+                    status: event.target.value as LeadStatus,
+                  })
                 }
               >
                 {leadStatuses.map((status) => (
@@ -569,9 +695,11 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 type="button"
                 className="secondary-button"
                 onClick={generateProposal}
-                disabled={!activeLead || busy === 'proposal'}
+                disabled={!activeLead || busy === "proposal"}
               >
-                {busy === 'proposal' ? <Loader2 className="spin" aria-hidden="true" size={18} /> : null}
+                {busy === "proposal" ? (
+                  <Loader2 className="spin" aria-hidden="true" size={18} />
+                ) : null}
                 Generate proposal
               </button>
               {activeProposal ? (
@@ -581,7 +709,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                     <input
                       value={activeProposal.title}
                       onChange={(event) =>
-                        updateProposal({ ...activeProposal, title: event.target.value })
+                        updateProposal({
+                          ...activeProposal,
+                          title: event.target.value,
+                        })
                       }
                     />
                   </label>
@@ -590,7 +721,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                     <textarea
                       value={activeProposal.scope}
                       onChange={(event) =>
-                        updateProposal({ ...activeProposal, scope: event.target.value })
+                        updateProposal({
+                          ...activeProposal,
+                          scope: event.target.value,
+                        })
                       }
                       rows={5}
                     />
@@ -598,12 +732,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   <label>
                     Deliverables
                     <textarea
-                      value={activeProposal.deliverables.join('\n')}
+                      value={activeProposal.deliverables.join("\n")}
                       onChange={(event) =>
                         updateProposal({
                           ...activeProposal,
                           deliverables: event.target.value
-                            .split('\n')
+                            .split("\n")
                             .map((item) => item.trim())
                             .filter(Boolean),
                         })
@@ -618,7 +752,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                         type="number"
                         value={activeProposal.fee}
                         onChange={(event) =>
-                          updateProposal({ ...activeProposal, fee: Number(event.target.value) || 0 })
+                          updateProposal({
+                            ...activeProposal,
+                            fee: Number(event.target.value) || 0,
+                          })
                         }
                       />
                     </label>
@@ -667,7 +804,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                       type="button"
                       className="primary-button"
                       onClick={signContract}
-                      disabled={busy === 'signature'}
+                      disabled={busy === "signature"}
                     >
                       <KeyRound aria-hidden="true" size={18} />
                       Sign
@@ -685,7 +822,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   {activeContract.signature ? (
                     <code className="signature-box">
                       SHA-256 {activeContract.signature.payloadHash}
-                      {'\n'}Ed25519 {activeContract.signature.verified ? 'verified' : 'not verified'}
+                      {"\n"}Ed25519{" "}
+                      {activeContract.signature.verified
+                        ? "verified"
+                        : "not verified"}
                     </code>
                   ) : null}
                 </div>
@@ -711,7 +851,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 <div className="stack">
                   <div className="invoice-total">
                     <span>{activeInvoice.number}</span>
-                    <strong>{formatMoney(invoiceTotal(activeInvoice), state.settings.currency)}</strong>
+                    <strong>
+                      {formatMoney(
+                        invoiceTotal(activeInvoice),
+                        state.settings.currency,
+                      )}
+                    </strong>
                   </div>
                   <div className="two-col">
                     <label>
@@ -721,7 +866,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                         onChange={(event) =>
                           updateInvoice({
                             ...activeInvoice,
-                            status: event.target.value as Invoice['status'],
+                            status: event.target.value as Invoice["status"],
                           })
                         }
                       >
@@ -741,9 +886,13 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                             ...activeInvoice,
                             amountPaid: Number(event.target.value) || 0,
                             status:
-                              Number(event.target.value) >= invoiceTotal(activeInvoice) ? 'paid' : 'sent',
+                              Number(event.target.value) >=
+                              invoiceTotal(activeInvoice)
+                                ? "paid"
+                                : "sent",
                             paidDate:
-                              Number(event.target.value) >= invoiceTotal(activeInvoice)
+                              Number(event.target.value) >=
+                              invoiceTotal(activeInvoice)
                                 ? todayIso()
                                 : activeInvoice.paidDate,
                           })
@@ -754,19 +903,25 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   <label>
                     Tax category
                     <select
-                      value={activeInvoice.lineItems[0]?.taxCategory ?? 'consulting_income'}
+                      value={
+                        activeInvoice.lineItems[0]?.taxCategory ??
+                        "consulting_income"
+                      }
                       onChange={(event) => {
-                        const [first, ...rest] = activeInvoice.lineItems
+                        const [first, ...rest] = activeInvoice.lineItems;
                         if (!first) {
-                          return
+                          return;
                         }
                         updateInvoice({
                           ...activeInvoice,
                           lineItems: [
-                            { ...first, taxCategory: event.target.value as TaxCategory },
+                            {
+                              ...first,
+                              taxCategory: event.target.value as TaxCategory,
+                            },
                             ...rest,
                           ],
-                        })
+                        });
                       }}
                     >
                       {taxCategories.map((category) => (
@@ -777,7 +932,11 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                     </select>
                   </label>
                   <p className="muted">
-                    Outstanding {formatMoney(invoiceOutstanding(activeInvoice), state.settings.currency)}
+                    Outstanding{" "}
+                    {formatMoney(
+                      invoiceOutstanding(activeInvoice),
+                      state.settings.currency,
+                    )}
                   </p>
                 </div>
               ) : (
@@ -793,32 +952,49 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             <h2>Exports</h2>
           </div>
           <div className="button-grid">
-            <button type="button" className="secondary-button" onClick={exportBackup}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={exportBackup}
+            >
               JSON backup
             </button>
-            <button type="button" className="secondary-button" onClick={exportTaxCsv}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={exportTaxCsv}
+            >
               Tax CSV
             </button>
             <button
               type="button"
               className="secondary-button"
               onClick={exportDuckDbCsv}
-              disabled={busy === 'duckdb'}
+              disabled={busy === "duckdb"}
             >
               DuckDB CSV
             </button>
-            <button type="button" className="secondary-button" onClick={exportMarkdown}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={exportMarkdown}
+            >
               Markdown
             </button>
             <button
               type="button"
               className="secondary-button"
               onClick={exportHtml}
-              disabled={busy === 'pandoc'}
+              disabled={busy === "pandoc"}
             >
               Pandoc HTML
             </button>
-            <button type="button" className="secondary-button" onClick={exportIcs} disabled={!activeLead}>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={exportIcs}
+              disabled={!activeLead}
+            >
               <CalendarPlus aria-hidden="true" size={16} />
               ICS
             </button>
@@ -836,7 +1012,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             type="button"
             className="primary-button full-width"
             onClick={exportEncryptedBackup}
-            disabled={busy === 'age'}
+            disabled={busy === "age"}
           >
             Encrypted backup
           </button>
@@ -849,7 +1025,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             {taxRows.map((row) => (
               <div role="row" className="tax-row" key={row.category}>
                 <span role="cell">{taxCategoryLabels[row.category]}</span>
-                <span role="cell">{formatMoney(row.paid, state.settings.currency)}</span>
+                <span role="cell">
+                  {formatMoney(row.paid, state.settings.currency)}
+                </span>
               </div>
             ))}
           </div>
@@ -861,21 +1039,27 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 Business
                 <input
                   value={state.profile.businessName}
-                  onChange={(event) => updateProfile('businessName', event.target.value)}
+                  onChange={(event) =>
+                    updateProfile("businessName", event.target.value)
+                  }
                 />
               </label>
               <label>
                 Owner
                 <input
                   value={state.profile.ownerName}
-                  onChange={(event) => updateProfile('ownerName', event.target.value)}
+                  onChange={(event) =>
+                    updateProfile("ownerName", event.target.value)
+                  }
                 />
               </label>
               <label>
                 Payment details
                 <textarea
                   value={state.profile.paymentDetails}
-                  onChange={(event) => updateProfile('paymentDetails', event.target.value)}
+                  onChange={(event) =>
+                    updateProfile("paymentDetails", event.target.value)
+                  }
                   rows={3}
                 />
               </label>
@@ -884,7 +1068,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   Currency
                   <input
                     value={state.settings.currency}
-                    onChange={(event) => updateSettings('currency', event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      updateSettings(
+                        "currency",
+                        event.target.value.toUpperCase(),
+                      )
+                    }
                   />
                 </label>
                 <label>
@@ -892,7 +1081,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                   <input
                     type="number"
                     value={state.settings.taxYear}
-                    onChange={(event) => updateSettings('taxYear', Number(event.target.value))}
+                    onChange={(event) =>
+                      updateSettings("taxYear", Number(event.target.value))
+                    }
                   />
                 </label>
               </div>
@@ -900,7 +1091,9 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 <input
                   type="checkbox"
                   checked={state.settings.localLlm.enabled}
-                  onChange={(event) => setLocalLlm({ enabled: event.target.checked })}
+                  onChange={(event) =>
+                    setLocalLlm({ enabled: event.target.checked })
+                  }
                 />
                 Local LLM
               </label>
@@ -908,17 +1101,25 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 Endpoint
                 <input
                   value={state.settings.localLlm.endpoint}
-                  onChange={(event) => setLocalLlm({ endpoint: event.target.value })}
+                  onChange={(event) =>
+                    setLocalLlm({ endpoint: event.target.value })
+                  }
                 />
               </label>
               <label>
                 Model
                 <input
                   value={state.settings.localLlm.model}
-                  onChange={(event) => setLocalLlm({ model: event.target.value })}
+                  onChange={(event) =>
+                    setLocalLlm({ model: event.target.value })
+                  }
                 />
               </label>
-              <button type="button" className="secondary-button" onClick={reset}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={reset}
+              >
                 <RefreshCcw aria-hidden="true" size={16} />
                 Reset demo
               </button>
@@ -928,11 +1129,13 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
       </section>
 
       <div className="status-bar" role="status">
-        <span>{ready ? toast : 'Opening local workspace...'}</span>
-        {busy ? <Loader2 className="spin" aria-hidden="true" size={16} /> : null}
+        <span>{ready ? toast : "Opening local workspace..."}</span>
+        {busy ? (
+          <Loader2 className="spin" aria-hidden="true" size={16} />
+        ) : null}
       </div>
     </main>
-  )
+  );
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
@@ -941,5 +1144,5 @@ function Metric({ label, value }: { label: string; value: number }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  )
+  );
 }

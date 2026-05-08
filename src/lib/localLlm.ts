@@ -1,4 +1,4 @@
-import type { Lead, PracticeProfile } from '../features/practice/types'
+import type { Lead, PracticeProfile } from "../features/practice/types";
 
 export const generateProposalScopeWithLocalLlm = async (
   lead: Lead,
@@ -6,9 +6,9 @@ export const generateProposalScopeWithLocalLlm = async (
   endpoint: string,
   model: string,
 ) => {
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await fetch(`${endpoint.replace(/\/$/, "")}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       stream: false,
@@ -20,12 +20,12 @@ Budget: ${lead.budget}
 
 Return 2 short paragraphs and avoid legal promises.`,
     }),
-  })
+  });
 
   if (!response.ok) {
-    throw new Error(`Local LLM returned ${response.status}`)
+    throw new Error(`Local LLM returned ${response.status}`);
   }
 
-  const data = (await response.json()) as { response?: string }
-  return data.response?.trim() ?? ''
-}
+  const data = (await response.json()) as { response?: string };
+  return data.response?.trim() ?? "";
+};
