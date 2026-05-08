@@ -13,7 +13,7 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { usePracticeWorkspace } from "./usePracticeWorkspace";
 import {
   formatMoney,
@@ -112,6 +112,21 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const [toast, setToast] = useState("Ready");
   const [busy, setBusy] = useState("");
   const [backupPassphrase, setBackupPassphrase] = useState("");
+  const latestCommit = useQuery({
+    queryKey: ["latest-commit"],
+    queryFn: async () => {
+      const response = await fetch(
+        "https://api.github.com/repos/baditaflorin/solo-practice-flow/commits/main",
+      );
+      if (!response.ok) {
+        throw new Error(`GitHub returned ${response.status}`);
+      }
+      const payload = (await response.json()) as { sha: string };
+      return payload.sha.slice(0, 7);
+    },
+    retry: false,
+    staleTime: 1000 * 60 * 10,
+  });
 
   const activeLead =
     state.leads.find((lead) => lead.id === activeLeadId) ?? state.leads[0];
@@ -524,7 +539,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           </div>
           <div>
             <dt>Commit</dt>
-            <dd>{commit}</dd>
+            <dd>{latestCommit.data ?? commit}</dd>
           </div>
         </dl>
       </header>
