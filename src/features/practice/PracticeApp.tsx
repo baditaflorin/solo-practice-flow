@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type DragEvent,
-  type FormEvent,
-} from "react";
+import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import {
   BadgeCheck,
   CalendarPlus,
@@ -165,16 +159,34 @@ const appendActivity = (
 const inferredText = (analysis: IntakeAnalysis | undefined, fallback: string) =>
   analysis?.lead.need?.value ?? fallback;
 
+const initialIntakeState = () => {
+  const decoded = decodeShareHash(window.location.hash);
+  if (decoded.ok && decoded.value) {
+    return {
+      text: decoded.value,
+      format: detectIntakeFormat(decoded.value),
+      toast: "Shared intake loaded from URL",
+    };
+  }
+
+  return {
+    text: "",
+    format: detectIntakeFormat(""),
+    toast: "Ready",
+  };
+};
+
 export function PracticeApp({ version, commit }: PracticeAppProps) {
   const { state, ready, error, updateState, reset } = usePracticeWorkspace();
+  const [initialIntake] = useState(initialIntakeState);
   const [activeLeadId, setActiveLeadId] = useState("");
   const [leadDraft, setLeadDraft] = useState<LeadDraft>(initialLeadDraft);
-  const [toast, setToast] = useState("Ready");
+  const [toast, setToast] = useState(initialIntake.toast);
   const [busy, setBusy] = useState("");
   const [backupPassphrase, setBackupPassphrase] = useState("");
-  const [rawIntake, setRawIntake] = useState("");
+  const [rawIntake, setRawIntake] = useState(initialIntake.text);
   const [intakeFormat, setIntakeFormat] = useState<IntakeFormat>(
-    detectIntakeFormat(""),
+    initialIntake.format,
   );
   const [dragActive, setDragActive] = useState(false);
   const debugMode = useMemo(
@@ -217,15 +229,6 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     setRawIntake(text);
     setIntakeFormat(detectIntakeFormat(text, filename));
   };
-
-  useEffect(() => {
-    const decoded = decodeShareHash(window.location.hash);
-    if (decoded.ok && decoded.value) {
-      setRawIntake(decoded.value);
-      setIntakeFormat(detectIntakeFormat(decoded.value));
-      setToast("Shared intake loaded from URL");
-    }
-  }, []);
 
   const llmMutation = useMutation({
     mutationFn: (lead: Lead) =>
