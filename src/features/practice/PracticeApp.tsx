@@ -1287,8 +1287,8 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                     <details className="evidence-list">
                       <summary>Inference evidence</summary>
                       <ul>
-                        {activeProposal.evidence.map((item) => (
-                          <li key={item}>{item}</li>
+                        {activeProposal.evidence.map((item, index) => (
+                          <li key={`${index}-${item}`}>{item}</li>
                         ))}
                       </ul>
                     </details>
