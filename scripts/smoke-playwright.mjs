@@ -21,7 +21,8 @@ try {
   await page.getByText("Version").waitFor();
   await page.getByText("Commit").waitFor();
 
-  await page.getByLabel("Raw intake").fill(`From: Morgan Lee <morgan@example.com>
+  await page.getByLabel("Raw intake")
+    .fill(`From: Morgan Lee <morgan@example.com>
 Company: Atlas Labs
 
 Hi Florin,
@@ -29,7 +30,10 @@ Hi Florin,
 We need a private proposal to cash workflow and can budget $8,400.
 Please follow up on June 1.
 `);
-  await page.getByText(/detected with/i).first().waitFor();
+  await page
+    .getByText(/detected with/i)
+    .first()
+    .waitFor();
   await page.getByRole("button", { name: "Apply" }).click();
   assert.equal(
     await page.getByPlaceholder("Company").inputValue(),
