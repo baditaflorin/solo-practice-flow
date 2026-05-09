@@ -1480,6 +1480,8 @@ function SmartIntakeReview({
           ))}
       </div>
 
+      <DomainSummary analysis={analysis} />
+
       {analysis.anomalies.length ? (
         <ul className="anomaly-list">
           {analysis.anomalies.slice(0, 4).map((item) => (
@@ -1507,6 +1509,62 @@ function SmartIntakeReview({
         </details>
       ) : null}
     </section>
+  );
+}
+
+function DomainSummary({ analysis }: { analysis: IntakeAnalysis }) {
+  if (!analysis.invoice && !analysis.payment && !analysis.contract) {
+    return null;
+  }
+
+  return (
+    <div className="domain-summary">
+      {analysis.invoice ? (
+        <div>
+          <strong>Invoice shape</strong>
+          <span>
+            {analysis.invoice.lineItems} lines · total {analysis.invoice.total}{" "}
+            · paid {analysis.invoice.paid}
+          </span>
+          <small>
+            Categories:{" "}
+            {analysis.invoice.taxCategories
+              .map((item) => taxCategoryLabels[item.value])
+              .join(", ")}
+          </small>
+        </div>
+      ) : null}
+      {analysis.payment ? (
+        <div>
+          <strong>Payment shape</strong>
+          <span>
+            Gross {analysis.payment.gross?.value ?? "unknown"} · fee{" "}
+            {analysis.payment.fee?.value ?? "unknown"} · net{" "}
+            {analysis.payment.net?.value ?? "unknown"}
+          </span>
+          <small>
+            {analysis.payment.currency?.value ?? "unknown currency"} ·{" "}
+            {analysis.payment.transactionId?.value ?? "no transaction ID"}
+          </small>
+        </div>
+      ) : null}
+      {analysis.contract ? (
+        <div>
+          <strong>Contract shape</strong>
+          <span>
+            Jurisdiction {analysis.contract.jurisdiction?.value ?? "unknown"} ·
+            confidentiality{" "}
+            {analysis.contract.hasConfidentiality ? "present" : "missing"} ·
+            termination{" "}
+            {analysis.contract.hasTermination ? "present" : "missing"}
+          </span>
+          <small>
+            Liability cap{" "}
+            {analysis.contract.hasLiabilityCap ? "present" : "missing"}
+          </small>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -392,6 +392,26 @@ a:focus-visible {
   gap: 6px;
 }
 
+.domain-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.domain-summary div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #dce2da;
+  border-radius: 8px;
+  padding: 8px;
+  background: #f8faf5;
+}
+
+.domain-summary span,
+.domain-summary small {
+  color: #657169;
+  font-size: 0.76rem;
+}
+
 .inference-pill {
   border: 1px solid #dce2da;
   border-radius: 8px;
