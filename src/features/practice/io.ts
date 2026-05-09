@@ -1,3 +1,5 @@
+import type { UserResult } from "../../lib/result";
+
 export interface LoadedIntakeFile {
   name: string;
   type: string;
@@ -19,13 +21,6 @@ export interface IntakeFormat {
   label: string;
   detail: string;
   confidence: number;
-}
-
-export interface Result<T> {
-  ok: boolean;
-  value?: T;
-  message: string;
-  detail?: string;
 }
 
 const textEncoder = new TextEncoder();
@@ -129,7 +124,7 @@ export const detectIntakeFormat = (
 
 export const formatLoadedIntakeFiles = (
   files: LoadedIntakeFile[],
-): Result<{ text: string; format: IntakeFormat; summary: string }> => {
+): UserResult<{ text: string; format: IntakeFormat; summary: string }> => {
   if (!files.length) {
     return {
       ok: false,
@@ -163,7 +158,7 @@ export const formatLoadedIntakeFiles = (
   };
 };
 
-export const encodeShareText = (text: string): Result<string> => {
+export const encodeShareText = (text: string): UserResult<string> => {
   const bytes = textEncoder.encode(text);
   if (bytes.length > maxShareTextBytes) {
     return {
@@ -183,7 +178,7 @@ export const encodeShareText = (text: string): Result<string> => {
   };
 };
 
-export const decodeShareHash = (hash: string): Result<string> => {
+export const decodeShareHash = (hash: string): UserResult<string> => {
   const match = hash.match(/^#intake=([A-Za-z0-9_-]+)$/u);
   if (!match) {
     return {

@@ -21,13 +21,13 @@ Status meanings: green = works fully, yellow = works partially, red = claimed bu
 | Folder import                            | gray          | gray         | No folder picker.                                                                     | Out of scope for a single-workspace Mode A app.                               |
 | Sample/demo data                         | yellow        | green        | A sample intake button loads a real fixture-like inquiry into the same intake path.   | Built.                                                                        |
 | Deep links                               | gray          | green        | `#intake=` hashes restore small raw-intake payloads.                                  | Built for small raw-intake share links only.                                  |
-| Imported JSON backup                     | red           | red          | JSON backup export exists; restore is absent.                                         | Build.                                                                        |
-| Imported encrypted backup                | red           | red          | age-encrypted export exists; decrypt/restore path absent despite encryption claim.    | Build.                                                                        |
+| Imported JSON backup                     | red           | green        | JSON backups restore through the shared backup parser and replace local workspace.    | Built with round-trip unit tests.                                             |
+| Imported encrypted backup                | red           | green        | age backups decrypt with the passphrase and restore through the same parser.          | Built with shared parser and actionable passphrase errors.                    |
 | Restored autosave                        | green         | green        | IndexedDB/Yjs workspace restores on reload.                                           | Keep and test.                                                                |
 | Clear/start fresh                        | yellow        | yellow       | Reset demo exists but label implies demo reset, not a real start-fresh/factory reset. | Rename/clarify and clear transient intake.                                    |
 
 Before summary: 3 green, 4 yellow/red, 10 gray.
 
-Current summary after input work: 11 green, 3 red/yellow, 3 intentionally unsupported gray.
+Current summary after restore work: 13 green, 1 yellow, 3 intentionally unsupported gray.
 
 Success target: all claimed pathways green; URL/image/folder pathways explicitly out of scope in ADR 0061 and README limitations.

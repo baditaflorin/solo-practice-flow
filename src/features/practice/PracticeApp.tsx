@@ -49,6 +49,7 @@ import {
   type IntakeFormat,
   type LoadedIntakeFile,
 } from "./io";
+import { parseWorkspaceBackup } from "./workspaceImport";
 import type {
   Contract,
   InferredValue,
@@ -63,7 +64,10 @@ import type {
 } from "./types";
 import { generateProposalScopeWithLocalLlm } from "../../lib/localLlm";
 import { signMarkdown, verifyMarkdownSignature } from "../../lib/signing";
-import { encryptTextWithPassphrase } from "../../lib/ageVault";
+import {
+  decryptTextWithPassphrase,
+  encryptTextWithPassphrase,
+} from "../../lib/ageVault";
 import { buildDuckDbTaxCsv, buildTaxRows } from "../../lib/duckdb";
 import { downloadText, toCsv } from "../../lib/downloads";
 import { markdownToStandaloneHtml } from "../../lib/pandoc";
@@ -591,6 +595,67 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         "text/plain",
       );
       setToast("age-encrypted backup downloaded");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const restoreWorkspaceContents = async (
+    contents: string,
+    sourceLabel: string,
+  ) => {
+    const parsed = parseWorkspaceBackup(contents);
+    if (!parsed.ok) {
+      setToast(parsed.detail ?? parsed.message);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Restore ${parsed.value.summary} from ${sourceLabel}? This replaces the current local workspace.`,
+    );
+    if (!confirmed) {
+      setToast("Workspace restore cancelled");
+      return;
+    }
+
+    const restoredState = appendActivity(
+      parsed.value.state,
+      "workspace.restored",
+      `Restored backup from ${parsed.value.sourceId}`,
+    );
+    await updateState(() => restoredState);
+    setActiveLeadId(restoredState.leads[0]?.id ?? "");
+    setLeadDraft(initialLeadDraft());
+    setIntakeText("");
+    setToast(`Workspace restored: ${parsed.value.summary}`);
+  };
+
+  const restoreWorkspaceFile = async (
+    files: FileList | null,
+    encrypted: boolean,
+  ) => {
+    const file = files?.[0];
+    if (!file) {
+      return;
+    }
+    if (encrypted && !backupPassphrase) {
+      setToast("Enter the backup passphrase before restoring an age file");
+      return;
+    }
+
+    setBusy(encrypted ? "restore-age" : "restore-json");
+    try {
+      const fileContents = await file.text();
+      const contents = encrypted
+        ? await decryptTextWithPassphrase(fileContents, backupPassphrase)
+        : fileContents;
+      await restoreWorkspaceContents(contents, file.name);
+    } catch (reason) {
+      setToast(
+        reason instanceof Error
+          ? `Workspace restore failed: ${reason.message}`
+          : "Workspace restore failed. Check the file and passphrase.",
+      );
     } finally {
       setBusy("");
     }
@@ -1392,6 +1457,34 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           >
             Encrypted backup
           </button>
+          <div className="button-grid restore-grid">
+            <label className="secondary-button file-button">
+              <FileUp aria-hidden="true" size={16} />
+              Restore JSON
+              <input
+                aria-label="Restore JSON backup"
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => {
+                  void restoreWorkspaceFile(event.currentTarget.files, false);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <label className="secondary-button file-button">
+              <KeyRound aria-hidden="true" size={16} />
+              Restore age
+              <input
+                aria-label="Restore encrypted backup"
+                type="file"
+                accept=".age,text/plain"
+                onChange={(event) => {
+                  void restoreWorkspaceFile(event.currentTarget.files, true);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          </div>
 
           <div className="tax-table" role="table" aria-label="Tax summary">
             <div role="row" className="tax-row header">

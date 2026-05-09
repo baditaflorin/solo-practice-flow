@@ -37,21 +37,33 @@ describe("practice IO helpers", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    expect(result.value?.text).toContain("--- email.txt");
-    expect(result.value?.text).toContain("--- budget.csv");
+    if (!result.ok) {
+      throw new Error(result.message);
+    }
+    expect(result.value.text).toContain("--- email.txt");
+    expect(result.value.text).toContain("--- budget.csv");
   });
 
   it("round-trips share hash payloads", () => {
     const encoded = encodeShareText("Need proposal for Iași office");
     expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      throw new Error(encoded.message);
+    }
 
     const decoded = decodeShareHash(`#intake=${encoded.value}`);
+    if (!decoded.ok) {
+      throw new Error(decoded.message);
+    }
     expect(decoded.value).toBe("Need proposal for Iași office");
   });
 
   it("refuses oversized share payloads", () => {
     const encoded = encodeShareText("x".repeat(maxShareTextBytes + 1));
     expect(encoded.ok).toBe(false);
+    if (encoded.ok) {
+      throw new Error("Expected oversized share text to fail");
+    }
     expect(encoded.message).toContain("too large");
   });
 });
