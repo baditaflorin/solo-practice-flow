@@ -32,7 +32,7 @@ The first smoke script used a fixed port, which collided with a leftover local s
 
 ## What Surprised Us
 
-The installed future Vite/Rolldown toolchain handled the app well, but its WASM behavior made the Pandoc packaging problem obvious. Also, a static build cannot embed the commit created by the commit that includes the build output, so the app now fetches the latest public GitHub commit at runtime and falls back to the build-time commit.
+The installed future Vite/Rolldown toolchain handled the app well, but its WASM behavior made the Pandoc packaging problem obvious. Also, a static build cannot embed the commit created by the commit that includes the build output, so the app shows the build-time commit and keeps the Pages surface free of unauthenticated API calls.
 
 ## Accepted Tech Debt
 
