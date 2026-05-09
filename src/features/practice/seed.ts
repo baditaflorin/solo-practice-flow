@@ -48,4 +48,10 @@ export const createInitialPracticeState = (): PracticeState => ({
   proposals: [],
   contracts: [],
   invoices: [],
+  activityLog: [],
+  corrections: {
+    sourceLabels: {},
+    taxCategoryByPhrase: {},
+    preferredPaymentTerms: "Net 14",
+  },
 });

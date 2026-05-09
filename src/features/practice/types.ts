@@ -17,6 +17,125 @@ export type TaxCategory =
   | "maintenance_income"
   | "reimbursable_expense";
 
+export type ConfidenceLevel = "high" | "medium" | "low";
+
+export type IntakeKind =
+  | "email"
+  | "message"
+  | "rfp"
+  | "lead_csv"
+  | "contract"
+  | "invoice_csv"
+  | "payment_csv"
+  | "transcript"
+  | "adversarial"
+  | "unknown";
+
+export interface InferredValue<T> {
+  value: T;
+  confidence: number;
+  level: ConfidenceLevel;
+  evidence: string;
+  reason: string;
+}
+
+export interface IntakeAnomaly {
+  code: string;
+  severity: "info" | "warning" | "danger";
+  message: string;
+  why: string;
+  next: string;
+  evidence?: string;
+}
+
+export interface SuggestedFix {
+  id: string;
+  label: string;
+  reason: string;
+  action: string;
+}
+
+export interface InferredLead {
+  id: string;
+  name?: InferredValue<string>;
+  company?: InferredValue<string>;
+  email?: InferredValue<string>;
+  source?: InferredValue<string>;
+  budgetMin?: InferredValue<number>;
+  budgetMax?: InferredValue<number>;
+  followUpAt?: InferredValue<string>;
+  need?: InferredValue<string>;
+  notes?: InferredValue<string>;
+}
+
+export interface InferredProposal {
+  deliverables: Array<InferredValue<string>>;
+  timeline?: InferredValue<string>;
+  paymentTerms?: InferredValue<string>;
+  acceptanceCriteria?: InferredValue<string>;
+  risks: Array<InferredValue<string>>;
+}
+
+export interface InferredInvoice {
+  lineItems: number;
+  total: number;
+  paid: number;
+  taxCategories: Array<InferredValue<TaxCategory>>;
+}
+
+export interface InferredPayment {
+  currency?: InferredValue<string>;
+  gross?: InferredValue<number>;
+  fee?: InferredValue<number>;
+  net?: InferredValue<number>;
+  transactionId?: InferredValue<string>;
+}
+
+export interface InferredContract {
+  jurisdiction?: InferredValue<string>;
+  hasConfidentiality: boolean;
+  hasTermination: boolean;
+  hasLiabilityCap: boolean;
+}
+
+export interface IntakeAnalysis {
+  id: string;
+  sourceId: string;
+  kind: IntakeKind;
+  confidence: number;
+  confidenceLevel: ConfidenceLevel;
+  normalizedText: string;
+  summary: string;
+  lead: InferredLead;
+  proposal: InferredProposal;
+  invoice?: InferredInvoice;
+  payment?: InferredPayment;
+  contract?: InferredContract;
+  anomalies: IntakeAnomaly[];
+  suggestedFixes: SuggestedFix[];
+  metadata: {
+    schemaVersion: number;
+    generatedAt: string;
+    inputBytes: number;
+    durationMs: number;
+    parameters: Record<string, string | number | boolean>;
+  };
+}
+
+export interface ActivityEvent {
+  id: string;
+  at: string;
+  type: string;
+  message: string;
+  entityId?: string;
+}
+
+export interface CorrectionMemory {
+  sourceLabels: Record<string, string>;
+  taxCategoryByPhrase: Record<string, TaxCategory>;
+  preferredPaymentTerms: string;
+}
+
 export interface PracticeProfile {
   businessName: string;
   ownerName: string;
@@ -53,6 +172,7 @@ export interface Lead {
   createdAt: string;
   followUpAt: string;
   notes: string;
+  inference?: IntakeAnalysis;
 }
 
 export interface Proposal {
@@ -66,6 +186,8 @@ export interface Proposal {
   terms: string;
   generatedAt: string;
   source: "template" | "local_llm";
+  confidence?: number;
+  evidence?: string[];
 }
 
 export interface SignatureRecord {
@@ -107,6 +229,7 @@ export interface Invoice {
   amountPaid: number;
   paidDate: string;
   memo: string;
+  provenance?: Record<string, string | number | boolean>;
 }
 
 export interface PracticeState {
@@ -118,6 +241,8 @@ export interface PracticeState {
   proposals: Proposal[];
   contracts: Contract[];
   invoices: Invoice[];
+  activityLog: ActivityEvent[];
+  corrections: CorrectionMemory;
 }
 
 export interface TaxSummaryRow {
