@@ -10,6 +10,7 @@ import {
   CalendarPlus,
   Check,
   ClipboardPaste,
+  Copy,
   Download,
   FileUp,
   FileSignature,
@@ -18,8 +19,10 @@ import {
   Loader2,
   PanelLeft,
   RefreshCcw,
+  Share2,
   Sparkles,
   Star,
+  Printer,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { usePracticeWorkspace } from "./usePracticeWorkspace";
@@ -44,6 +47,7 @@ import {
 import {
   decodeShareHash,
   detectIntakeFormat,
+  encodeShareText,
   formatLoadedIntakeFiles,
   sampleIntake,
   type IntakeFormat,
@@ -71,6 +75,7 @@ import {
 import { buildDuckDbTaxCsv, buildTaxRows } from "../../lib/duckdb";
 import { downloadText, toCsv } from "../../lib/downloads";
 import { markdownToStandaloneHtml } from "../../lib/pandoc";
+import { markdownToPrintableHtml } from "../../lib/printDocument";
 import { buildLeadFollowUpIcs } from "../../lib/ics";
 import {
   buildExportProvenance,
@@ -284,6 +289,35 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const loadSampleIntake = () => {
     setIntakeText(sampleIntake, "sample-intake.txt");
     setToast("Sample intake loaded");
+  };
+
+  const copyText = async (text: string, successMessage: string) => {
+    if (!text.trim()) {
+      setToast("Nothing to copy yet");
+      return;
+    }
+    if (!navigator.clipboard?.writeText) {
+      setToast("Clipboard write is unavailable in this browser");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(successMessage);
+    } catch {
+      setToast("Clipboard permission blocked; download the output instead");
+    }
+  };
+
+  const shareRawIntake = async () => {
+    const encoded = encodeShareText(rawIntake);
+    if (!encoded.ok) {
+      setToast(encoded.detail ?? encoded.message);
+      return;
+    }
+
+    const url = `${window.location.origin}${window.location.pathname}#intake=${encoded.value}`;
+    await copyText(url, "Share link copied");
   };
 
   const dropIntakeFiles = async (event: DragEvent<HTMLElement>) => {
@@ -661,14 +695,18 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     }
   };
 
-  const exportTaxCsv = () => {
-    const provenance = buildExportProvenance(state, "tax-csv", {
+  const taxCsvWithProvenance = (sourceId: string) => {
+    const provenance = buildExportProvenance(state, sourceId, {
       tax_year: state.settings.taxYear,
       invoices: state.invoices.length,
     });
+    return toCsv(buildTaxRows(state, provenance));
+  };
+
+  const exportTaxCsv = () => {
     downloadText(
       `solo-practice-flow-tax-${state.settings.taxYear}.csv`,
-      toCsv(buildTaxRows(state, provenance)),
+      taxCsvWithProvenance("tax-csv"),
       "text/csv",
     );
     setToast("Tax CSV downloaded");
@@ -722,27 +760,81 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     );
   };
 
-  const exportMarkdown = () => {
+  const currentMarkdownWithProvenance = (sourceId: string) => {
     const markdown = currentMarkdown();
+    if (!markdown) {
+      return "";
+    }
+    return `${markdown}\n${renderProvenanceMarkdown(
+      buildExportProvenance(state, sourceId, {
+        active_lead_id: activeLead?.id ?? "",
+        active_proposal_id: activeProposal?.id ?? "",
+      }),
+    )}`;
+  };
+
+  const exportMarkdown = () => {
+    const markdown = currentMarkdownWithProvenance("markdown-document");
     if (!markdown) {
       setToast("Generate a proposal first");
       return;
     }
     downloadText(
       `solo-practice-flow-document-${todayIso()}.md`,
-      `${markdown}\n${renderProvenanceMarkdown(
-        buildExportProvenance(state, "markdown-document", {
-          active_lead_id: activeLead?.id ?? "",
-          active_proposal_id: activeProposal?.id ?? "",
-        }),
-      )}`,
+      markdown,
       "text/markdown",
     );
     setToast("Markdown document downloaded");
   };
 
+  const copyCurrentDocument = async () => {
+    const markdown = currentMarkdownWithProvenance("clipboard-document");
+    if (!markdown) {
+      setToast("Generate a proposal first");
+      return;
+    }
+    await copyText(markdown, "Current document copied");
+  };
+
+  const printCurrentDocument = () => {
+    const markdown = currentMarkdownWithProvenance("print-document");
+    if (!markdown) {
+      setToast("Generate a proposal first");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      setToast("Print window blocked; download Markdown instead");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(
+      markdownToPrintableHtml("Solo Practice Flow document", markdown),
+    );
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    setToast("Print dialog opened");
+  };
+
+  const copyTaxCsv = async () => {
+    await copyText(taxCsvWithProvenance("clipboard-tax-csv"), "Tax CSV copied");
+  };
+
+  const copyBackupJson = async () => {
+    await copyText(
+      JSON.stringify(
+        buildStateExportEnvelope(state, "clipboard-workspace-backup"),
+        null,
+        2,
+      ),
+      "Automation JSON copied",
+    );
+  };
+
   const exportHtml = async () => {
-    const markdown = currentMarkdown();
+    const markdown = currentMarkdownWithProvenance("html-document");
     if (!markdown) {
       setToast("Generate a proposal first");
       return;
@@ -750,14 +842,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
 
     setBusy("pandoc");
     try {
-      const html = await markdownToStandaloneHtml(
-        `${markdown}\n${renderProvenanceMarkdown(
-          buildExportProvenance(state, "html-document", {
-            active_lead_id: activeLead?.id ?? "",
-            active_proposal_id: activeProposal?.id ?? "",
-          }),
-        )}`,
-      );
+      const html = await markdownToStandaloneHtml(markdown);
       downloadText(
         `solo-practice-flow-document-${todayIso()}.html`,
         html,
@@ -927,6 +1012,14 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                 onClick={loadSampleIntake}
               >
                 Sample
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={shareRawIntake}
+              >
+                <Share2 aria-hidden="true" size={16} />
+                Share
               </button>
             </div>
             <label>
@@ -1403,9 +1496,25 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             <button
               type="button"
               className="secondary-button"
+              onClick={copyBackupJson}
+            >
+              <Copy aria-hidden="true" size={16} />
+              Copy JSON
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
               onClick={exportTaxCsv}
             >
               Tax CSV
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={copyTaxCsv}
+            >
+              <Copy aria-hidden="true" size={16} />
+              Copy CSV
             </button>
             <button
               type="button"
@@ -1425,10 +1534,26 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             <button
               type="button"
               className="secondary-button"
+              onClick={copyCurrentDocument}
+            >
+              <Copy aria-hidden="true" size={16} />
+              Copy doc
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
               onClick={exportHtml}
               disabled={busy === "pandoc"}
             >
               Pandoc HTML
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={printCurrentDocument}
+            >
+              <Printer aria-hidden="true" size={16} />
+              Print
             </button>
             <button
               type="button"
