@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { usePracticeWorkspace } from "./usePracticeWorkspace";
+import { analyzeIntake } from "./inference";
+import { validatePracticeFlow } from "./validation";
 import {
   formatMoney,
   invoiceOutstanding,
@@ -33,7 +35,10 @@ import {
 } from "./documents";
 import type {
   Contract,
+  InferredValue,
   Invoice,
+  IntakeAnalysis,
+  IntakeAnomaly,
   Lead,
   LeadStatus,
   PracticeState,
@@ -47,6 +52,11 @@ import { buildDuckDbTaxCsv, buildTaxRows } from "../../lib/duckdb";
 import { downloadText, toCsv } from "../../lib/downloads";
 import { markdownToStandaloneHtml } from "../../lib/pandoc";
 import { buildLeadFollowUpIcs } from "../../lib/ics";
+import {
+  buildExportProvenance,
+  buildStateExportEnvelope,
+  renderProvenanceMarkdown,
+} from "../../lib/provenance";
 
 interface PracticeAppProps {
   version: string;
@@ -105,6 +115,31 @@ const replaceById = <T extends { id: string }>(items: T[], item: T) =>
 const classNames = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
 
+const confidencePercent = (confidence?: number) =>
+  `${Math.round((confidence ?? 0) * 100)}%`;
+
+const appendActivity = (
+  state: PracticeState,
+  type: string,
+  message: string,
+  entityId?: string,
+): PracticeState => ({
+  ...state,
+  activityLog: [
+    {
+      id: makeId("activity"),
+      at: new Date().toISOString(),
+      type,
+      message,
+      entityId,
+    },
+    ...(state.activityLog ?? []),
+  ].slice(0, 50),
+});
+
+const inferredText = (analysis: IntakeAnalysis | undefined, fallback: string) =>
+  analysis?.lead.need?.value ?? fallback;
+
 export function PracticeApp({ version, commit }: PracticeAppProps) {
   const { state, ready, error, updateState, reset } = usePracticeWorkspace();
   const [activeLeadId, setActiveLeadId] = useState("");
@@ -112,6 +147,15 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const [toast, setToast] = useState("Ready");
   const [busy, setBusy] = useState("");
   const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [rawIntake, setRawIntake] = useState("");
+  const debugMode = useMemo(
+    () => new URLSearchParams(window.location.search).has("debug"),
+    [],
+  );
+  const intakeAnalysis = useMemo(
+    () => (rawIntake.trim() ? analyzeIntake(rawIntake) : undefined),
+    [rawIntake],
+  );
 
   const activeLead =
     state.leads.find((lead) => lead.id === activeLeadId) ?? state.leads[0];
@@ -129,6 +173,16 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
 
   const counts = useMemo(() => statusCounts(state), [state]);
   const taxRows = useMemo(() => taxSummary(state), [state]);
+  const flowIssues = useMemo(
+    () =>
+      validatePracticeFlow({
+        lead: activeLead,
+        proposal: activeProposal,
+        contract: activeContract,
+        invoice: activeInvoice,
+      }),
+    [activeLead, activeProposal, activeContract, activeInvoice],
+  );
 
   const llmMutation = useMutation({
     mutationFn: (lead: Lead) =>
@@ -143,7 +197,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const saveLeadDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextLead: Lead = {
-      id: makeId("lead"),
+      id: intakeAnalysis?.lead.id ?? makeId("lead"),
       name: leadDraft.name.trim() || "Unnamed lead",
       company: leadDraft.company.trim(),
       email: leadDraft.email.trim(),
@@ -154,15 +208,49 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
       createdAt: todayIso(),
       followUpAt: leadDraft.followUpAt || todayIso(),
       notes: leadDraft.notes.trim(),
+      inference: intakeAnalysis,
     };
 
     await updateState((current) => ({
-      ...current,
+      ...appendActivity(
+        current,
+        "lead.captured",
+        `Captured ${nextLead.company || nextLead.name} with ${
+          intakeAnalysis
+            ? confidencePercent(intakeAnalysis.confidence)
+            : "manual"
+        } confidence`,
+        nextLead.id,
+      ),
       leads: [nextLead, ...current.leads],
     }));
     setActiveLeadId(nextLead.id);
     setLeadDraft(initialLeadDraft());
     setToast(`Lead captured: ${nextLead.company || nextLead.name}`);
+  };
+
+  const applyIntakeGuess = () => {
+    if (!intakeAnalysis) {
+      return;
+    }
+
+    setLeadDraft({
+      name: intakeAnalysis.lead.name?.value ?? leadDraft.name,
+      company: intakeAnalysis.lead.company?.value ?? leadDraft.company,
+      email: intakeAnalysis.lead.email?.value ?? leadDraft.email,
+      source: intakeAnalysis.lead.source?.value ?? leadDraft.source,
+      budget: String(
+        intakeAnalysis.lead.budgetMax?.value ??
+          intakeAnalysis.lead.budgetMin?.value ??
+          leadDraft.budget,
+      ),
+      need: inferredText(intakeAnalysis, leadDraft.need),
+      followUpAt: intakeAnalysis.lead.followUpAt?.value ?? leadDraft.followUpAt,
+      notes: intakeAnalysis.normalizedText,
+    });
+    setToast(
+      `First guess applied with ${confidencePercent(intakeAnalysis.confidence)} confidence`,
+    );
   };
 
   const updateLead = async (lead: Lead) => {
@@ -213,10 +301,33 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         activeLead,
         state.profile,
         state.settings,
-        llmScope,
+        llmScope || activeLead.inference?.lead.need?.value,
       );
+      if (activeLead.inference) {
+        const inferredDeliverables =
+          activeLead.inference.proposal.deliverables.map((item) => item.value);
+        if (inferredDeliverables.length) {
+          proposal.deliverables = inferredDeliverables;
+        }
+        proposal.timeline =
+          activeLead.inference.proposal.timeline?.value || proposal.timeline;
+        proposal.terms =
+          activeLead.inference.proposal.paymentTerms?.value || proposal.terms;
+        proposal.confidence = activeLead.inference.confidence;
+        proposal.evidence = [
+          activeLead.inference.summary,
+          ...activeLead.inference.proposal.deliverables.map(
+            (item) => item.evidence,
+          ),
+        ];
+      }
       await updateState((current) => ({
-        ...current,
+        ...appendActivity(
+          current,
+          "proposal.generated",
+          `Generated proposal for ${activeLead.company || activeLead.name}`,
+          proposal.id,
+        ),
         leads: replaceById(current.leads, {
           ...activeLead,
           status: "proposal",
@@ -243,7 +354,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
       state.profile,
     );
     await updateState((current) => ({
-      ...current,
+      ...appendActivity(
+        current,
+        "contract.drafted",
+        "Drafted contract from proposal evidence",
+        contract.id,
+      ),
       leads: replaceById(current.leads, { ...activeLead, status: "contract" }),
       contracts: [
         contract,
@@ -266,7 +382,18 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         activeContract.bodyMarkdown,
         state.profile.ownerName,
       );
-      await updateContract({ ...activeContract, signature });
+      await updateState((current) => ({
+        ...appendActivity(
+          current,
+          "contract.signed",
+          "Signed contract with Ed25519",
+          activeContract.id,
+        ),
+        contracts: replaceById(current.contracts, {
+          ...activeContract,
+          signature,
+        }),
+      }));
       setToast("Contract signed and verified locally");
     } finally {
       setBusy("");
@@ -303,8 +430,27 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
       activeProposal,
       state.settings,
     );
+    for (const [phrase, category] of Object.entries(
+      state.corrections?.taxCategoryByPhrase ?? {},
+    )) {
+      if (
+        activeProposal.title.toLowerCase().includes(phrase.toLowerCase()) &&
+        invoice.lineItems[0]
+      ) {
+        invoice.lineItems[0].taxCategory = category;
+      }
+    }
+    invoice.provenance = buildExportProvenance(state, `invoice:${invoice.id}`, {
+      proposal_id: activeProposal.id,
+      confidence: activeProposal.confidence ?? 0,
+    });
     await updateState((current) => ({
-      ...current,
+      ...appendActivity(
+        current,
+        "invoice.created",
+        `Created invoice ${invoice.number}`,
+        invoice.id,
+      ),
       invoices: [
         invoice,
         ...current.invoices.filter(
@@ -316,9 +462,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   };
 
   const exportBackup = () => {
+    const envelope = buildStateExportEnvelope(state, "workspace-backup");
     downloadText(
       `solo-practice-flow-backup-${todayIso()}.json`,
-      JSON.stringify(state, null, 2),
+      JSON.stringify(envelope, null, 2),
       "application/json",
     );
     setToast("JSON backup downloaded");
@@ -333,7 +480,11 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     setBusy("age");
     try {
       const encrypted = await encryptTextWithPassphrase(
-        JSON.stringify(state, null, 2),
+        JSON.stringify(
+          buildStateExportEnvelope(state, "encrypted-backup"),
+          null,
+          2,
+        ),
         backupPassphrase,
       );
       downloadText(
@@ -348,9 +499,13 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   };
 
   const exportTaxCsv = () => {
+    const provenance = buildExportProvenance(state, "tax-csv", {
+      tax_year: state.settings.taxYear,
+      invoices: state.invoices.length,
+    });
     downloadText(
       `solo-practice-flow-tax-${state.settings.taxYear}.csv`,
-      toCsv(buildTaxRows(state)),
+      toCsv(buildTaxRows(state, provenance)),
       "text/csv",
     );
     setToast("Tax CSV downloaded");
@@ -359,7 +514,13 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const exportDuckDbCsv = async () => {
     setBusy("duckdb");
     try {
-      const csv = await buildDuckDbTaxCsv(state);
+      const csv = await buildDuckDbTaxCsv(
+        state,
+        buildExportProvenance(state, "duckdb-tax-csv", {
+          tax_year: state.settings.taxYear,
+          invoices: state.invoices.length,
+        }),
+      );
       downloadText(
         `solo-practice-flow-duckdb-tax-${state.settings.taxYear}.csv`,
         csv,
@@ -406,7 +567,12 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     }
     downloadText(
       `solo-practice-flow-document-${todayIso()}.md`,
-      markdown,
+      `${markdown}\n${renderProvenanceMarkdown(
+        buildExportProvenance(state, "markdown-document", {
+          active_lead_id: activeLead?.id ?? "",
+          active_proposal_id: activeProposal?.id ?? "",
+        }),
+      )}`,
       "text/markdown",
     );
     setToast("Markdown document downloaded");
@@ -421,7 +587,14 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
 
     setBusy("pandoc");
     try {
-      const html = await markdownToStandaloneHtml(markdown);
+      const html = await markdownToStandaloneHtml(
+        `${markdown}\n${renderProvenanceMarkdown(
+          buildExportProvenance(state, "html-document", {
+            active_lead_id: activeLead?.id ?? "",
+            active_proposal_id: activeProposal?.id ?? "",
+          }),
+        )}`,
+      );
       downloadText(
         `solo-practice-flow-document-${todayIso()}.html`,
         html,
@@ -548,6 +721,21 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           </div>
 
           <form className="stack" onSubmit={saveLeadDraft}>
+            <label>
+              Raw intake
+              <textarea
+                value={rawIntake}
+                onChange={(event) => setRawIntake(event.target.value)}
+                placeholder="Paste an inquiry, DM, RFP excerpt, CSV rows, contract text, or payment export"
+                rows={5}
+              />
+            </label>
+            {intakeAnalysis ? (
+              <SmartIntakeReview
+                analysis={intakeAnalysis}
+                onApply={applyIntakeGuess}
+              />
+            ) : null}
             <label>
               Contact
               <input
@@ -685,6 +873,8 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
             ) : null}
           </div>
 
+          {flowIssues.length ? <FlowWarnings issues={flowIssues} /> : null}
+
           <div className="flow-columns">
             <section className="tool-section">
               <div className="section-title">
@@ -764,6 +954,28 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                       <input value={activeProposal.source} readOnly />
                     </label>
                   </div>
+                  {activeProposal.confidence !== undefined ? (
+                    <div className="confidence-callout">
+                      <strong>
+                        Proposal confidence{" "}
+                        {confidencePercent(activeProposal.confidence)}
+                      </strong>
+                      <span>
+                        Drafted from the captured intake. Review low-confidence
+                        fields before sending.
+                      </span>
+                    </div>
+                  ) : null}
+                  {activeProposal.evidence?.length ? (
+                    <details className="evidence-list">
+                      <summary>Inference evidence</summary>
+                      <ul>
+                        {activeProposal.evidence.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
                 </div>
               ) : (
                 <p className="muted">No proposal yet.</p>
@@ -912,16 +1124,33 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
                         if (!first) {
                           return;
                         }
-                        updateInvoice({
+                        const taxCategory = event.target.value as TaxCategory;
+                        const nextInvoice = {
                           ...activeInvoice,
                           lineItems: [
                             {
                               ...first,
-                              taxCategory: event.target.value as TaxCategory,
+                              taxCategory,
                             },
                             ...rest,
                           ],
-                        });
+                        };
+                        updateState((current) => ({
+                          ...current,
+                          corrections: {
+                            ...(current.corrections ?? {
+                              sourceLabels: {},
+                              taxCategoryByPhrase: {},
+                              preferredPaymentTerms: "Net 14",
+                            }),
+                            taxCategoryByPhrase: {
+                              ...(current.corrections?.taxCategoryByPhrase ??
+                                {}),
+                              [first.description]: taxCategory,
+                            },
+                          },
+                          invoices: replaceById(current.invoices, nextInvoice),
+                        }));
                       }}
                     >
                       {taxCategories.map((category) => (
@@ -1031,6 +1260,28 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               </div>
             ))}
           </div>
+
+          <section className="activity-log" aria-label="Activity history">
+            <h3>Activity</h3>
+            {(state.activityLog ?? []).length ? (
+              <ol>
+                {(state.activityLog ?? []).slice(0, 6).map((event) => (
+                  <li key={event.id}>
+                    <span>{event.message}</span>
+                    <time dateTime={event.at}>
+                      {new Date(event.at).toLocaleString()}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="muted">No workspace activity yet.</p>
+            )}
+          </section>
+
+          {debugMode ? (
+            <DebugPanel state={state} analysis={intakeAnalysis} />
+          ) : null}
 
           <details>
             <summary>Practice settings</summary>
@@ -1144,5 +1395,191 @@ function Metric({ label, value }: { label: string; value: number }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function FlowWarnings({ issues }: { issues: IntakeAnomaly[] }) {
+  return (
+    <section className="flow-warnings" aria-label="Flow checks">
+      <strong>Flow checks</strong>
+      <ul className="anomaly-list">
+        {issues.slice(0, 4).map((issue) => (
+          <li key={issue.code} className={`anomaly-${issue.severity}`}>
+            <strong>{issue.message}</strong>
+            <span>{issue.why}</span>
+            <em>{issue.next}</em>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SmartIntakeReview({
+  analysis,
+  onApply,
+}: {
+  analysis: IntakeAnalysis;
+  onApply: () => void;
+}) {
+  const leadFields: Array<{
+    label: string;
+    value?: InferredValue<string | number>;
+  }> = [
+    { label: "Contact", value: analysis.lead.name },
+    { label: "Company", value: analysis.lead.company },
+    { label: "Email", value: analysis.lead.email },
+    { label: "Budget", value: analysis.lead.budgetMax },
+    { label: "Follow-up", value: analysis.lead.followUpAt },
+    { label: "Need", value: analysis.lead.need },
+  ];
+  const proposalFields: Array<{
+    label: string;
+    value?: InferredValue<string | number>;
+  }> = [
+    ...analysis.proposal.deliverables.slice(0, 3).map((value, index) => ({
+      label: `Deliverable ${index + 1}`,
+      value,
+    })),
+    { label: "Timeline", value: analysis.proposal.timeline },
+    { label: "Terms", value: analysis.proposal.paymentTerms },
+  ];
+
+  return (
+    <section
+      className={classNames(
+        "smart-review",
+        `confidence-${analysis.confidenceLevel}`,
+      )}
+      aria-label="Smart intake review"
+    >
+      <div className="smart-review-header">
+        <Sparkles aria-hidden="true" size={18} />
+        <div>
+          <strong>{analysis.summary}</strong>
+          <span>
+            {analysis.kind.replace("_", " ")} ·{" "}
+            {confidencePercent(analysis.confidence)}
+          </span>
+        </div>
+        <button type="button" className="secondary-button" onClick={onApply}>
+          <Check aria-hidden="true" size={16} />
+          Apply
+        </button>
+      </div>
+
+      <div className="inference-grid">
+        {[...leadFields, ...proposalFields]
+          .filter((field) => field.value)
+          .map((field) => (
+            <InferencePill
+              key={field.label}
+              label={field.label}
+              value={field.value!}
+            />
+          ))}
+      </div>
+
+      {analysis.anomalies.length ? (
+        <ul className="anomaly-list">
+          {analysis.anomalies.slice(0, 4).map((item) => (
+            <li key={item.code} className={`anomaly-${item.severity}`}>
+              <strong>{item.message}</strong>
+              <span>{item.why}</span>
+              <em>{item.next}</em>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted">No intake anomalies found.</p>
+      )}
+
+      {analysis.suggestedFixes.length ? (
+        <details className="evidence-list">
+          <summary>Suggested fixes</summary>
+          <ul>
+            {analysis.suggestedFixes.map((fix) => (
+              <li key={fix.id}>
+                <strong>{fix.label}</strong> · {fix.action}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
+function InferencePill({
+  label,
+  value,
+}: {
+  label: string;
+  value: InferredValue<string | number>;
+}) {
+  return (
+    <details className={`inference-pill confidence-${value.level}`}>
+      <summary>
+        <span>{label}</span>
+        <strong>{String(value.value)}</strong>
+        <small>{confidencePercent(value.confidence)}</small>
+      </summary>
+      <p>{value.reason}</p>
+      <code>{value.evidence}</code>
+    </details>
+  );
+}
+
+function DebugPanel({
+  state,
+  analysis,
+}: {
+  state: PracticeState;
+  analysis?: IntakeAnalysis;
+}) {
+  return (
+    <details className="debug-panel" open>
+      <summary>Debug state</summary>
+      <dl>
+        <div>
+          <dt>Schema</dt>
+          <dd>{state.schemaVersion}</dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>{state.updatedAt}</dd>
+        </div>
+        <div>
+          <dt>Corrections</dt>
+          <dd>
+            {Object.keys(state.corrections?.taxCategoryByPhrase ?? {}).length}
+          </dd>
+        </div>
+        <div>
+          <dt>Intake</dt>
+          <dd>{analysis ? analysis.summary : "none"}</dd>
+        </div>
+      </dl>
+      <pre>
+        {JSON.stringify(
+          {
+            version: __APP_VERSION__,
+            commit: __COMMIT_SHA__,
+            analysis: analysis
+              ? {
+                  id: analysis.id,
+                  kind: analysis.kind,
+                  confidence: analysis.confidence,
+                  anomalies: analysis.anomalies.map((item) => item.code),
+                  durationMs: analysis.metadata.durationMs,
+                }
+              : null,
+            activity: (state.activityLog ?? []).slice(0, 5),
+          },
+          null,
+          2,
+        )}
+      </pre>
+    </details>
   );
 }

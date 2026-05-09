@@ -55,3 +55,37 @@ export const createInitialPracticeState = (): PracticeState => ({
     preferredPaymentTerms: "Net 14",
   },
 });
+
+export const normalizePracticeState = (state: PracticeState): PracticeState => {
+  const defaults = createInitialPracticeState();
+
+  return {
+    ...state,
+    schemaVersion,
+    profile: {
+      ...defaults.profile,
+      ...state.profile,
+    },
+    settings: {
+      ...defaults.settings,
+      ...state.settings,
+      localLlm: {
+        ...defaults.settings.localLlm,
+        ...(state.settings.localLlm ?? {}),
+      },
+    },
+    activityLog: state.activityLog ?? [],
+    corrections: {
+      ...defaults.corrections,
+      ...(state.corrections ?? {}),
+      sourceLabels: {
+        ...defaults.corrections.sourceLabels,
+        ...(state.corrections?.sourceLabels ?? {}),
+      },
+      taxCategoryByPhrase: {
+        ...defaults.corrections.taxCategoryByPhrase,
+        ...(state.corrections?.taxCategoryByPhrase ?? {}),
+      },
+    },
+  };
+};

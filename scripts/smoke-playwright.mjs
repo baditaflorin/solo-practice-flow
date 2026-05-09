@@ -21,12 +21,18 @@ try {
   await page.getByText("Version").waitFor();
   await page.getByText("Commit").waitFor();
 
-  await page.getByPlaceholder("Client name").fill("Morgan Lee");
-  await page.getByPlaceholder("Company").fill("Atlas Labs");
-  await page.getByPlaceholder("client@example.com").fill("morgan@example.com");
-  await page
-    .getByPlaceholder("What outcome are they buying?")
-    .fill("A private proposal to cash workflow.");
+  await page.getByLabel("Raw intake").fill(`Hi Florin,
+
+I'm Morgan Lee at Atlas Labs. We need a private proposal to cash workflow and can budget $8,400.
+Please follow up on June 1.
+
+morgan@example.com`);
+  await page.getByText(/email detected with/i).waitFor();
+  await page.getByRole("button", { name: "Apply" }).click();
+  assert.equal(
+    await page.getByPlaceholder("Company").inputValue(),
+    "Atlas Labs",
+  );
   await page.getByRole("button", { name: "Capture" }).click();
   await page.getByText("Atlas Labs").first().waitFor();
 

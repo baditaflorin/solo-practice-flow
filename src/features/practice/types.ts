@@ -130,6 +130,15 @@ export interface ActivityEvent {
   entityId?: string;
 }
 
+export interface ExportProvenance {
+  app_version: string;
+  commit: string;
+  schema_version: number;
+  generated_at: string;
+  source_id: string;
+  parameters: Record<string, string | number | boolean>;
+}
+
 export interface CorrectionMemory {
   sourceLabels: Record<string, string>;
   taxCategoryByPhrase: Record<string, TaxCategory>;
@@ -229,7 +238,7 @@ export interface Invoice {
   amountPaid: number;
   paidDate: string;
   memo: string;
-  provenance?: Record<string, string | number | boolean>;
+  provenance?: ExportProvenance;
 }
 
 export interface PracticeState {

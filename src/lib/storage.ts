@@ -1,6 +1,9 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import * as Y from "yjs";
-import { createInitialPracticeState } from "../features/practice/seed";
+import {
+  createInitialPracticeState,
+  normalizePracticeState,
+} from "../features/practice/seed";
 import type { PracticeState } from "../features/practice/types";
 import { practiceStateSchema } from "../features/practice/schemas";
 
@@ -31,7 +34,9 @@ const parseState = (value: unknown): PracticeState => {
 
   try {
     const parsed = practiceStateSchema.safeParse(JSON.parse(value));
-    return parsed.success ? parsed.data : createInitialPracticeState();
+    return parsed.success
+      ? normalizePracticeState(parsed.data)
+      : createInitialPracticeState();
   } catch {
     return createInitialPracticeState();
   }

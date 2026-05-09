@@ -1,7 +1,13 @@
-import type { PracticeState } from "../features/practice/types";
+import type {
+  ExportProvenance,
+  PracticeState,
+} from "../features/practice/types";
 import { invoiceTotal } from "../features/practice/calculations";
 
-export const buildTaxRows = (state: PracticeState) =>
+export const buildTaxRows = (
+  state: PracticeState,
+  provenance?: ExportProvenance,
+) =>
   state.invoices.flatMap((invoice) =>
     invoice.lineItems.map((item) => ({
       invoice_number: invoice.number,
@@ -16,10 +22,18 @@ export const buildTaxRows = (state: PracticeState) =>
           ? 0
           : invoice.amountPaid *
             ((item.quantity * item.unitPrice) / invoiceTotal(invoice)),
+      app_version: provenance?.app_version ?? "",
+      commit: provenance?.commit ?? "",
+      schema_version: provenance?.schema_version ?? state.schemaVersion,
+      generated_at: provenance?.generated_at ?? state.updatedAt,
+      source_id: provenance?.source_id ?? invoice.provenance?.source_id ?? "",
     })),
   );
 
-export const buildDuckDbTaxCsv = async (state: PracticeState) => {
+export const buildDuckDbTaxCsv = async (
+  state: PracticeState,
+  provenance?: ExportProvenance,
+) => {
   const duckdb = await import("@duckdb/duckdb-wasm");
   const bundles = duckdb.getJsDelivrBundles();
   const bundle = await duckdb.selectBundle(bundles);
@@ -37,7 +51,7 @@ export const buildDuckDbTaxCsv = async (state: PracticeState) => {
     URL.revokeObjectURL(workerUrl);
     await db.registerFileText(
       "tax_rows.json",
-      JSON.stringify(buildTaxRows(state)),
+      JSON.stringify(buildTaxRows(state, provenance)),
     );
     const connection = await db.connect();
     await connection.insertJSONFromPath("tax_rows.json", { name: "tax_rows" });
@@ -46,7 +60,12 @@ export const buildDuckDbTaxCsv = async (state: PracticeState) => {
         tax_category,
         round(sum(invoiced), 2) AS invoiced,
         round(sum(paid), 2) AS paid,
-        round(sum(invoiced - paid), 2) AS outstanding
+        round(sum(invoiced - paid), 2) AS outstanding,
+        min(app_version) AS app_version,
+        min(commit) AS commit,
+        min(schema_version) AS schema_version,
+        min(generated_at) AS generated_at,
+        min(source_id) AS source_id
       FROM tax_rows
       GROUP BY tax_category
       ORDER BY tax_category
@@ -57,7 +76,7 @@ export const buildDuckDbTaxCsv = async (state: PracticeState) => {
     await connection.close();
 
     if (rows.length === 0) {
-      return "tax_category,invoiced,paid,outstanding\n";
+      return "tax_category,invoiced,paid,outstanding,app_version,commit,schema_version,generated_at,source_id\n";
     }
 
     const headers = Object.keys(rows[0]);

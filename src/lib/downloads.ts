@@ -12,14 +12,16 @@ export const downloadText = (
   URL.revokeObjectURL(url);
 };
 
-export const toCsv = (rows: Array<Record<string, string | number>>) => {
+export const toCsv = (
+  rows: Array<Record<string, string | number | boolean | undefined>>,
+) => {
   if (rows.length === 0) {
     return "";
   }
 
   const headers = Object.keys(rows[0]);
-  const escape = (value: string | number) => {
-    const text = String(value);
+  const escape = (value: string | number | boolean | undefined) => {
+    const text = value === undefined ? "" : String(value);
     return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
 
