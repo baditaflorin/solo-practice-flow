@@ -1,0 +1,27 @@
+# Phase 2 Substance State Taxonomy
+
+Date: 2026-05-09
+
+Scope: Mode A browser-only app. No server, auth, or hosted sync states exist.
+
+| State                 | Entry condition                                                         | User-visible handling                                                                                        | Exit                                                         |
+| --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Opening workspace     | IndexedDB/Yjs document is loading                                       | Status bar says the local workspace is opening                                                               | Workspace opens or recoverable storage error is shown        |
+| Storage error         | IndexedDB/Yjs open fails                                                | Empty state shows the storage error message                                                                  | Reload, browser storage repair, or reset browser site data   |
+| Ready with demo lead  | Initial seed state is loaded                                            | Demo lead is selectable; all actions are enabled according to prerequisites                                  | Capture a lead, reset, or edit settings                      |
+| Raw intake empty      | Raw intake textarea is blank                                            | Manual lead form remains available                                                                           | Paste/type intake                                            |
+| Intake analyzed       | Raw intake has content                                                  | Smart intake review appears with kind, confidence, inferred fields, evidence, anomalies, and suggested fixes | Apply guess, edit form manually, or clear raw intake         |
+| Intake low confidence | Analysis confidence is below 55% or validation finds missing essentials | Warnings explain what is missing, why it matters, and the next step                                          | Correct fields or continue knowingly                         |
+| Lead captured         | User submits the capture form                                           | Lead is inserted, selected, and activity log records capture confidence                                      | Generate proposal or select another lead                     |
+| Flow warnings         | Active lead/proposal/contract/invoice has validation issues             | Flow checks appear under the active client                                                                   | Correct the warned field or proceed if warning is acceptable |
+| Proposal busy         | Proposal generation is running                                          | Generate button disables and spinner appears                                                                 | Proposal is saved or local LLM fallback template is used     |
+| Contract ready        | Proposal exists and contract is drafted                                 | Contract Markdown editor, Sign, and Verify controls are available                                            | Edit contract, sign contract, or regenerate from proposal    |
+| Signature stale       | Signed contract body is edited                                          | Signature is cleared when Markdown changes                                                                   | Sign again                                                   |
+| Signature verified    | Ed25519 signature matches the Markdown body                             | Signature box says verified and exports include the signed block                                             | Edit contract, which returns to unsigned/stale               |
+| Invoice ready         | Invoice exists for active proposal                                      | Invoice total, status, paid amount, tax category, and outstanding amount are shown                           | Update payment/status/category or export                     |
+| Correction remembered | User changes the invoice tax category                                   | Category mapping is stored in local correction memory for similar proposal titles this session/workspace     | Regenerate invoice or reset workspace                        |
+| Export busy           | age, DuckDB, or Pandoc export is running                                | Relevant button disables and status spinner appears                                                          | Download succeeds or fallback/error message appears          |
+| DuckDB fallback       | DuckDB-WASM cannot initialize                                           | Plain tax CSV is downloaded and the toast says DuckDB was unavailable                                        | Retry later or use the fallback CSV                          |
+| Debug visible         | URL contains `?debug=1`                                                 | Debug panel shows app version, commit, active analysis metadata, activity, and correction counts             | Remove `?debug=1`                                            |
+
+No stuck states are intentional. Every visible state has at least one exit: clear/edit input, apply guess, correct fields, retry export, reset demo, or reload after storage repair.

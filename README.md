@@ -7,6 +7,9 @@ Local-first freelance CRM for leads, proposals, contracts, invoices, payments, a
 Solo Practice Flow is a static GitHub Pages app that replaces the early solo-consulting tool chain:
 lead capture, proposal generation, contract drafting and signing, invoices, payment tracking, and export.
 
+Version 0.2.0 adds smart intake for messy emails, DMs, RFP excerpts, CSVs, contracts, invoices,
+payment exports, transcripts, and adversarial input, with confidence, evidence, anomalies, and provenance.
+
 ![Solo Practice Flow screenshot](docs/screenshot.png)
 
 ## Links
@@ -62,3 +65,7 @@ Architecture: docs/architecture.md
 Deployment: docs/deploy.md
 
 ADRs: docs/adr/
+
+Phase 2 substance audit: docs/phase2-substance/realdata-audit.md
+
+Phase 2 postmortem: docs/postmortem-phase2-substance.md

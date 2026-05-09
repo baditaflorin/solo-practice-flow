@@ -34,12 +34,12 @@ Ranked by real-data user impact from `docs/phase2-substance/realdata-audit.md`.
 
 ## Implementation Order
 
-1. Intake normalization and inference engine.
-2. Fixture test harness and deterministic expected properties.
-3. UI wiring for smart intake, confidence, evidence, anomalies, and suggested fixes.
-4. Domain validation and actionable errors.
-5. Export provenance, stable IDs, activity log, and debug surface.
-6. Performance/state docs and Phase 2 postmortem.
+1. Done: intake normalization and inference engine.
+2. Done: fixture test harness and deterministic expected properties.
+3. Done: UI wiring for smart intake, confidence, evidence, anomalies, and suggested fixes.
+4. Done: domain validation and actionable errors.
+5. Done: export provenance, stable IDs, activity log, and debug surface.
+6. Done: performance/state docs and Phase 2 postmortem.
 
 ## Non-Goals
 

@@ -1,7 +1,7 @@
 {
   "name": "solo-practice-flow",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first freelance CRM for leads, proposals, contracts, invoices, payments, and tax-ready exports.",
   "type": "module",
   "scripts": {
