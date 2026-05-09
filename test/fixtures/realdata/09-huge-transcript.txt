@@ -1,0 +1,10 @@
+Discovery transcript excerpt.
+
+Stakeholders: Mara from Product, Ionut from Ops, and Vera from Finance.
+Decision: phase one should focus on lead intake, proposal generation, signed contract evidence, invoice tracking, and tax export.
+Scope change: client also wants PayPal fee reconciliation.
+Dates: kickoff 2026-06-10, first review 2026-06-17, final handoff 2026-07-01.
+Risks: old spreadsheets have mixed encodings and duplicate client names.
+Action item: send a proposal with three milestones and clear acceptance criteria.
+
+[The original user input may continue for tens of thousands of words.]

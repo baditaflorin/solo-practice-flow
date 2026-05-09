@@ -1,0 +1,11 @@
+{
+  "kind": "lead_csv",
+  "leadCount": 3,
+  "lead": {
+    "company": "Atlas Labs",
+    "email": "mina@atlas.example",
+    "budgetMin": 5500
+  },
+  "confidenceAtLeast": 0.7,
+  "requiredAnomalies": ["missing_email"]
+}

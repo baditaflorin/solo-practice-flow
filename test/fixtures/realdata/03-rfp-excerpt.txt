@@ -1,0 +1,17 @@
+REQUEST FOR PROPOSAL
+
+Client: Civic Forms Lab
+Contact: procurement@civicforms.example
+Deadline: 2026-07-05
+Budget: USD 18000
+Payment terms: Net 30 after invoice approval.
+
+Scope: design a private workflow for lead intake, proposal generation, contract review, and export.
+
+Required deliverables:
+- discovery brief
+- implementation roadmap
+- signed handoff checklist
+- acceptance criteria matrix
+
+Acceptance criteria: imported data is deterministic, exports include provenance, and staff can correct low-confidence fields.

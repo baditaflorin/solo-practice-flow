@@ -1,0 +1,10 @@
+{
+  "kind": "invoice_csv",
+  "invoice": {
+    "lineItems": 4,
+    "total": 7720,
+    "paid": 3000
+  },
+  "confidenceAtLeast": 0.72,
+  "requiredAnomalies": ["negative_line_item"]
+}

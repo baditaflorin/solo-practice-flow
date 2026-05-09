@@ -1,0 +1,5 @@
+Invoice,Client,Description,Qty,Unit Price,Category,Paid
+INV-1042,Northstar Ops,Strategy consulting sprint,1,6000,Consulting,3000
+INV-1042,Northstar Ops,Software setup,1,1800,Software,0
+INV-1042,Northstar Ops,Travel reimbursement,1,420,Reimbursement,0
+INV-1042,Northstar Ops,Discount,1,-500,Discount,0

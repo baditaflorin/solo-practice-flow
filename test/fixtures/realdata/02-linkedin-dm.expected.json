@@ -1,0 +1,10 @@
+{
+  "kind": "message",
+  "lead": {
+    "source": "LinkedIn",
+    "budgetMin": 3000,
+    "budgetMax": 4000
+  },
+  "confidenceAtLeast": 0.45,
+  "requiredAnomalies": ["missing_email", "relative_date"]
+}

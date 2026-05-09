@@ -1,0 +1,14 @@
+{
+  "kind": "contract",
+  "lead": {
+    "company": "Beacon Metrics Ltd.",
+    "budgetMin": 9500
+  },
+  "contract": {
+    "jurisdiction": "Romania",
+    "hasConfidentiality": true,
+    "hasTermination": true
+  },
+  "confidenceAtLeast": 0.65,
+  "requiredAnomalies": ["missing_email"]
+}

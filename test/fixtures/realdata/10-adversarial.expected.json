@@ -1,0 +1,9 @@
+{
+  "kind": "adversarial",
+  "lead": {
+    "company": "Nоrthstar Ops",
+    "budgetMin": 1000000
+  },
+  "confidenceAtLeast": 0.25,
+  "requiredAnomalies": ["prompt_injection", "suspicious_unicode", "invalid_date", "suspicious_fee_instruction"]
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "transcript",
+  "proposal": {
+    "deliverablesAtLeast": 3,
+    "hasRisk": true
+  },
+  "confidenceAtLeast": 0.52,
+  "requiredAnomalies": ["large_or_partial_input"]
+}

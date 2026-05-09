@@ -1,0 +1,15 @@
+{
+  "kind": "rfp",
+  "lead": {
+    "company": "Civic Forms Lab",
+    "email": "procurement@civicforms.example",
+    "budgetMin": 18000,
+    "budgetMax": 18000
+  },
+  "proposal": {
+    "deliverablesAtLeast": 4,
+    "paymentTerms": "Net 30"
+  },
+  "confidenceAtLeast": 0.8,
+  "requiredAnomalies": []
+}

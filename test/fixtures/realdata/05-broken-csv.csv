@@ -1,0 +1,5 @@
+Name,Company,Email,Budget,Notes
+"Dana, K.",Slate Works,dana@slate.example,"7,500","Line one
+line two with “smart quotes”"
+Invalid Row,Only Two Columns
+Lee Wong,Meridian Ops,lee@meridian.example,£4200,"NBSP between words"

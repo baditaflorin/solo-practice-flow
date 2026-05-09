@@ -1,0 +1,13 @@
+{
+  "kind": "email",
+  "lead": {
+    "name": "Avery Chen",
+    "company": "Northstar Ops",
+    "email": "avery@northstar.example",
+    "budgetMin": 8000,
+    "budgetMax": 12000,
+    "followUpAt": "2026-06-01"
+  },
+  "confidenceAtLeast": 0.78,
+  "requiredAnomalies": []
+}

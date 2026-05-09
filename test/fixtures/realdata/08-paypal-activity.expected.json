@@ -1,0 +1,11 @@
+{
+  "kind": "payment_csv",
+  "payment": {
+    "currency": "USD",
+    "gross": 8000,
+    "fee": -252.3,
+    "net": 7747.7
+  },
+  "confidenceAtLeast": 0.7,
+  "requiredAnomalies": ["pending_payment"]
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "lead_csv",
+  "leadCount": 2,
+  "lead": {
+    "email": "dana@slate.example",
+    "budgetMin": 7500
+  },
+  "confidenceAtLeast": 0.55,
+  "requiredAnomalies": ["malformed_row", "smart_punctuation", "nbsp"]
+}
