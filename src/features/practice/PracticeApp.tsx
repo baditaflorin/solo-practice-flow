@@ -695,6 +695,15 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     }
   };
 
+  const startFreshWorkspace = async () => {
+    const next = await reset();
+    setActiveLeadId(next?.leads[0]?.id ?? "");
+    setLeadDraft(initialLeadDraft());
+    setIntakeText("");
+    setBackupPassphrase("");
+    setToast("Started fresh workspace");
+  };
+
   const taxCsvWithProvenance = (sourceId: string) => {
     const provenance = buildExportProvenance(state, sourceId, {
       tax_year: state.settings.taxYear,
@@ -1734,10 +1743,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={reset}
+                onClick={startFreshWorkspace}
               >
                 <RefreshCcw aria-hidden="true" size={16} />
-                Reset demo
+                Start fresh
               </button>
             </div>
           </details>

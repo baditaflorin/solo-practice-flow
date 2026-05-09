@@ -56,7 +56,9 @@ export const usePracticeWorkspace = () => {
     if (!workspaceRef.current) {
       return;
     }
-    setStateSnapshot(await workspaceRef.current.reset());
+    const next = await workspaceRef.current.reset();
+    setStateSnapshot(next);
+    return next;
   }, []);
 
   return {
