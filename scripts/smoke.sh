@@ -3,8 +3,19 @@ set -euo pipefail
 
 npm run build
 
-PORT="${PORT:-$((4300 + RANDOM % 1000))}"
-while lsof -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; do
+is_unsafe_browser_port() {
+  case "$1" in
+    5060 | 5061 | 6000 | 6566 | 6665 | 6666 | 6667 | 6668 | 6669 | 6697 | 10080)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+PORT="${PORT:-$((4273 + RANDOM % 600))}"
+while is_unsafe_browser_port "$PORT" || lsof -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; do
   PORT="$((PORT + 1))"
 done
 PORT="$PORT" node scripts/pages-server.mjs &
