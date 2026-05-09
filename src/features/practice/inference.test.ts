@@ -98,19 +98,27 @@ describe("real-data intake inference", () => {
       );
     }
     if (expected.proposal?.paymentTerms) {
-      expect(first.proposal.paymentTerms?.value).toContain(expected.proposal.paymentTerms);
+      expect(first.proposal.paymentTerms?.value).toContain(
+        expected.proposal.paymentTerms,
+      );
     }
     if (expected.proposal?.hasRisk) {
       expect(first.proposal.risks.length).toBeGreaterThan(0);
     }
     if (expected.contract?.jurisdiction) {
-      expect(first.contract?.jurisdiction?.value).toBe(expected.contract.jurisdiction);
+      expect(first.contract?.jurisdiction?.value).toBe(
+        expected.contract.jurisdiction,
+      );
     }
     if (expected.contract?.hasConfidentiality !== undefined) {
-      expect(first.contract?.hasConfidentiality).toBe(expected.contract.hasConfidentiality);
+      expect(first.contract?.hasConfidentiality).toBe(
+        expected.contract.hasConfidentiality,
+      );
     }
     if (expected.contract?.hasTermination !== undefined) {
-      expect(first.contract?.hasTermination).toBe(expected.contract.hasTermination);
+      expect(first.contract?.hasTermination).toBe(
+        expected.contract.hasTermination,
+      );
     }
     if (expected.invoice?.lineItems !== undefined) {
       expect(first.invoice?.lineItems).toBe(expected.invoice.lineItems);

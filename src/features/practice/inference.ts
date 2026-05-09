@@ -1,4 +1,12 @@
-import { schemaVersion, type IntakeAnalysis, type IntakeAnomaly, type IntakeKind, type InferredValue, type SuggestedFix, type TaxCategory } from "./types";
+import {
+  schemaVersion,
+  type IntakeAnalysis,
+  type IntakeAnomaly,
+  type IntakeKind,
+  type InferredValue,
+  type SuggestedFix,
+  type TaxCategory,
+} from "./types";
 
 export interface AnalyzeOptions {
   now?: string;
@@ -49,7 +57,8 @@ export const stableHash = (value: string) => {
   return (hash >>> 0).toString(16).padStart(8, "0");
 };
 
-export const stableId = (prefix: string, value: string) => `${prefix}-${stableHash(value).slice(0, 10)}`;
+export const stableId = (prefix: string, value: string) =>
+  `${prefix}-${stableHash(value).slice(0, 10)}`;
 
 const anomaly = (
   code: string,
@@ -118,7 +127,11 @@ const normalizeInput = (raw: string): NormalizedInput => {
     );
   }
 
-  if (/ignore (all )?(previous|prior) instructions|sign immediately|set .*fee .*0/i.test(text)) {
+  if (
+    /ignore (all )?(previous|prior) instructions|sign immediately|set .*fee .*0/i.test(
+      text,
+    )
+  ) {
     anomalies.push(
       anomaly(
         "prompt_injection",
@@ -176,20 +189,26 @@ const parseCsv = (text: string): CsvParseResult | null => {
   row.push(field.trim());
   rows.push(row);
 
-  const [headers = [], ...bodyRows] = rows.filter((candidate) => candidate.some(Boolean));
+  const [headers = [], ...bodyRows] = rows.filter((candidate) =>
+    candidate.some(Boolean),
+  );
   const malformedRows = bodyRows
     .map((candidate, index) => ({ candidate, index }))
     .filter(({ candidate }) => candidate.length !== headers.length)
     .map(({ index }) => index + 2);
 
-  return { headers: headers.map((header) => header.toLowerCase().trim()), rows: bodyRows, malformedRows };
+  return {
+    headers: headers.map((header) => header.toLowerCase().trim()),
+    rows: bodyRows,
+    malformedRows,
+  };
 };
 
 const byHeader = (csv: CsvParseResult, row: string[], aliases: string[]) => {
   const index = csv.headers.findIndex((header) =>
     aliases.some((alias) => header === alias || header.includes(alias)),
   );
-  return index >= 0 ? row[index]?.trim() ?? "" : "";
+  return index >= 0 ? (row[index]?.trim() ?? "") : "";
 };
 
 const parseMoney = (raw: string) => {
@@ -200,7 +219,9 @@ const parseMoney = (raw: string) => {
 };
 
 const findBudget = (text: string) => {
-  const budgetLine = text.match(/\bbudget:\s*(?:usd\s*|eur\s*|gbp\s*|\$|€|£)?([\d,.]+)(?:\s*k)?/i);
+  const budgetLine = text.match(
+    /\bbudget:\s*(?:usd\s*|eur\s*|gbp\s*|\$|€|£)?([\d,.]+)(?:\s*k)?/i,
+  );
   if (budgetLine?.[1]) {
     const multiplier = /k/i.test(budgetLine[0]) ? 1000 : 1;
     const value = Number(budgetLine[1].replace(/,/g, "")) * multiplier;
@@ -209,7 +230,9 @@ const findBudget = (text: string) => {
     }
   }
 
-  const range = text.match(/(?:budget is|budget:|maybe)\s*(?:usd |eur |gbp |\$|€|£)?([\d,.]+)\s*k?\s*[-–]\s*(?:\$|€|£)?([\d,.]+)\s*k?/i);
+  const range = text.match(
+    /(?:budget is|budget:|maybe)\s*(?:usd |eur |gbp |\$|€|£)?([\d,.]+)\s*k?\s*[-–]\s*(?:\$|€|£)?([\d,.]+)\s*k?/i,
+  );
   if (range?.[1] && range[2]) {
     const firstHasK = /k/i.test(range[0]);
     const min = Number(range[1].replace(/,/g, "")) * (firstHasK ? 1000 : 1);
@@ -217,7 +240,9 @@ const findBudget = (text: string) => {
     return { min, max, evidence: range[0] };
   }
 
-  const single = text.match(/(?:budget is|budget:|fee:)?\s*(?:usd |eur |gbp |\$|€|£)([\d,.]+)(?:\s*k)?/i);
+  const single = text.match(
+    /(?:budget is|budget:|fee:)?\s*(?:usd |eur |gbp |\$|€|£)([\d,.]+)(?:\s*k)?/i,
+  );
   if (single?.[1]) {
     const multiplier = /k/i.test(single[0]) ? 1000 : 1;
     const value = Number(single[1].replace(/,/g, "")) * multiplier;
@@ -229,7 +254,8 @@ const findBudget = (text: string) => {
   return undefined;
 };
 
-const findEmail = (text: string) => text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+const findEmail = (text: string) =>
+  text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
 
 const findDate = (text: string) => {
   const iso = text.match(/\b(20\d{2})[-/](\d{2})[-/](\d{2})\b/);
@@ -309,17 +335,27 @@ const findDate = (text: string) => {
   }
 
   if (/next friday/i.test(text)) {
-    return { value: "", evidence: "next Friday", invalid: false, relative: true };
+    return {
+      value: "",
+      evidence: "next Friday",
+      invalid: false,
+      relative: true,
+    };
   }
 
   return undefined;
 };
 
 const extractCompany = (text: string) => {
-  const labeled = text.match(/(?:Client|Company|Parties):\s*([^\n]+)/i)?.[1]?.trim();
+  const labeled = text
+    .match(/(?:Client|Company|Parties):\s*([^\n]+)/i)?.[1]
+    ?.trim();
   if (labeled) {
     if (/ and /i.test(labeled)) {
-      return labeled.split(/\s+and\s+/i).at(-1)?.trim();
+      return labeled
+        .split(/\s+and\s+/i)
+        .at(-1)
+        ?.trim();
     }
     return labeled;
   }
@@ -327,11 +363,21 @@ const extractCompany = (text: string) => {
   return weAre?.replace(/\s+and need.*$/i, "");
 };
 
-const extractName = (text: string) => text.match(/From:\s*([^<\n]+)/i)?.[1]?.trim();
+const extractName = (text: string) =>
+  text.match(/From:\s*([^<\n]+)/i)?.[1]?.trim();
 
-const detectKind = (text: string, csv: CsvParseResult | null, anomalies: IntakeAnomaly[]): IntakeKind => {
+const detectKind = (
+  text: string,
+  csv: CsvParseResult | null,
+  anomalies: IntakeAnomaly[],
+): IntakeKind => {
   const headers = csv?.headers.join(" ") ?? "";
-  if (anomalies.some((item) => item.code === "prompt_injection" || item.code === "suspicious_unicode")) {
+  if (
+    anomalies.some(
+      (item) =>
+        item.code === "prompt_injection" || item.code === "suspicious_unicode",
+    )
+  ) {
     return "adversarial";
   }
   if (csv && /gross|fee|net|transaction/.test(headers)) {
@@ -343,13 +389,17 @@ const detectKind = (text: string, csv: CsvParseResult | null, anomalies: IntakeA
   if (csv && /company|email|budget|follow/.test(headers)) {
     return "lead_csv";
   }
-  if (/consulting agreement|liability cap|termination|confidentiality/i.test(text)) {
+  if (
+    /consulting agreement|liability cap|termination|confidentiality/i.test(text)
+  ) {
     return "contract";
   }
   if (/transcript|stakeholders|action item|decision:/i.test(text)) {
     return "transcript";
   }
-  if (/request for proposal|required deliverables|acceptance criteria/i.test(text)) {
+  if (
+    /request for proposal|required deliverables|acceptance criteria/i.test(text)
+  ) {
     return "rfp";
   }
   if (/^subject:|^from:/im.test(text)) {
@@ -374,7 +424,9 @@ const inferTaxCategory = (description: string): TaxCategory => {
   return "consulting_income";
 };
 
-const estimateConfidence = (analysis: Pick<IntakeAnalysis, "lead" | "anomalies" | "kind">) => {
+const estimateConfidence = (
+  analysis: Pick<IntakeAnalysis, "lead" | "anomalies" | "kind">,
+) => {
   const fields = [
     analysis.lead.name,
     analysis.lead.company,
@@ -384,14 +436,19 @@ const estimateConfidence = (analysis: Pick<IntakeAnalysis, "lead" | "anomalies" 
     analysis.lead.need,
   ].filter(Boolean) as Array<InferredValue<unknown>>;
   const fieldScore = fields.length
-    ? fields.reduce((total, field) => total + field.confidence, 0) / fields.length
+    ? fields.reduce((total, field) => total + field.confidence, 0) /
+      fields.length
     : 0.25;
-  const penalty = analysis.anomalies.filter((item) => item.severity !== "info").length * 0.08;
+  const penalty =
+    analysis.anomalies.filter((item) => item.severity !== "info").length * 0.08;
   const kindBoost = analysis.kind === "unknown" ? -0.1 : 0.08;
   return Math.max(0.1, Math.min(0.98, fieldScore - penalty + kindBoost));
 };
 
-export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): IntakeAnalysis => {
+export const analyzeIntake = (
+  raw: string,
+  options: AnalyzeOptions = {},
+): IntakeAnalysis => {
   const generatedAt = options.now ?? defaultNow;
   const normalized = normalizeInput(raw);
   const csv = parseCsv(normalized.text);
@@ -457,29 +514,59 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
 
   const lead = {
     id: stableId("lead", `${email ?? company ?? normalized.text.slice(0, 80)}`),
-    name: name ? inferred(name, 0.82, name, "Detected from email From header.") : undefined,
-    company: company ? inferred(company, 0.78, company, "Detected from client/company wording.") : undefined,
-    email: email ? inferred(email, 0.94, email, "Detected by email pattern.") : undefined,
+    name: name
+      ? inferred(name, 0.82, name, "Detected from email From header.")
+      : undefined,
+    company: company
+      ? inferred(
+          company,
+          0.78,
+          company,
+          "Detected from client/company wording.",
+        )
+      : undefined,
+    email: email
+      ? inferred(email, 0.94, email, "Detected by email pattern.")
+      : undefined,
     source: inferred(
-      kind === "message" ? "LinkedIn" : kind === "email" ? "Email" : kind === "lead_csv" ? "Spreadsheet" : "Direct",
-      kind === "message" || kind === "email" || kind === "lead_csv" ? 0.8 : 0.45,
+      kind === "message"
+        ? "LinkedIn"
+        : kind === "email"
+          ? "Email"
+          : kind === "lead_csv"
+            ? "Spreadsheet"
+            : "Direct",
+      kind === "message" || kind === "email" || kind === "lead_csv"
+        ? 0.8
+        : 0.45,
       kind,
       "Inferred from input shape.",
     ),
-    budgetMin: budget ? inferred(budget.min, 0.86, budget.evidence, "Detected budget amount.") : undefined,
-    budgetMax: budget ? inferred(budget.max, 0.82, budget.evidence, "Detected budget amount.") : undefined,
+    budgetMin: budget
+      ? inferred(budget.min, 0.86, budget.evidence, "Detected budget amount.")
+      : undefined,
+    budgetMax: budget
+      ? inferred(budget.max, 0.82, budget.evidence, "Detected budget amount.")
+      : undefined,
     followUpAt:
       date && date.value && !date.invalid
         ? inferred(date.value, 0.74, date.evidence, "Detected date pattern.")
         : undefined,
     need: inferred(
-      normalized.text.split("\n").find((line) => /need|scope|trying|focus|action item/i.test(line)) ??
+      normalized.text
+        .split("\n")
+        .find((line) => /need|scope|trying|focus|action item/i.test(line)) ??
         normalized.text.slice(0, 240),
       0.58,
       normalized.text.slice(0, 180),
       "Selected the strongest problem/scope sentence.",
     ),
-    notes: inferred(normalized.text.slice(0, 500), 0.5, "raw intake", "Preserved original intake excerpt."),
+    notes: inferred(
+      normalized.text.slice(0, 500),
+      0.5,
+      "raw intake",
+      "Preserved original intake excerpt.",
+    ),
   };
 
   if (!lead.email) {
@@ -494,21 +581,45 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
     );
   }
 
-  const deliverables = [...normalized.text.matchAll(/-\s+([^\n]+)/g)].map((match) =>
-    inferred(match[1].trim(), 0.82, match[0], "Detected from a bullet list."),
+  const deliverables = [...normalized.text.matchAll(/-\s+([^\n]+)/g)].map(
+    (match) =>
+      inferred(match[1].trim(), 0.82, match[0], "Detected from a bullet list."),
   );
-  if (/proposal|contract|invoice|tax export|lead intake/i.test(normalized.text) && deliverables.length < 3) {
+  if (
+    /proposal|contract|invoice|tax export|lead intake/i.test(normalized.text) &&
+    deliverables.length < 3
+  ) {
     deliverables.push(
-      inferred("Lead intake and proposal workflow", 0.52, "workflow wording", "Derived from practice workflow terms."),
-      inferred("Contract evidence and invoice tracking", 0.52, "workflow wording", "Derived from practice workflow terms."),
-      inferred("Tax-ready export with provenance", 0.52, "export wording", "Derived from export requirements."),
+      inferred(
+        "Lead intake and proposal workflow",
+        0.52,
+        "workflow wording",
+        "Derived from practice workflow terms.",
+      ),
+      inferred(
+        "Contract evidence and invoice tracking",
+        0.52,
+        "workflow wording",
+        "Derived from practice workflow terms.",
+      ),
+      inferred(
+        "Tax-ready export with provenance",
+        0.52,
+        "export wording",
+        "Derived from export requirements.",
+      ),
     );
   }
 
   const proposal = {
     deliverables,
     timeline: date?.value
-      ? inferred(date.value, 0.62, date.evidence, "Detected deadline or milestone date.")
+      ? inferred(
+          date.value,
+          0.62,
+          date.evidence,
+          "Detected deadline or milestone date.",
+        )
       : undefined,
     paymentTerms: normalized.text.match(/payment terms:\s*([^\n.]+)/i)?.[1]
       ? inferred(
@@ -518,7 +629,9 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
           "Detected payment terms label.",
         )
       : undefined,
-    acceptanceCriteria: normalized.text.match(/acceptance criteria:\s*([^\n]+)/i)?.[1]
+    acceptanceCriteria: normalized.text.match(
+      /acceptance criteria:\s*([^\n]+)/i,
+    )?.[1]
       ? inferred(
           normalized.text.match(/acceptance criteria:\s*([^\n]+)/i)![1].trim(),
           0.82,
@@ -535,7 +648,9 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
   let payment: IntakeAnalysis["payment"];
 
   if (csv && kind === "invoice_csv") {
-    const validRows = csv.rows.filter((row) => row.length === csv.headers.length);
+    const validRows = csv.rows.filter(
+      (row) => row.length === csv.headers.length,
+    );
     const totals = validRows.map((row) => {
       const qty = Number(byHeader(csv, row, ["qty", "quantity"])) || 1;
       const unit = parseMoney(byHeader(csv, row, ["unit price", "price"])) ?? 0;
@@ -555,18 +670,31 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
     invoice = {
       lineItems: validRows.length,
       total: totals.reduce((total, value) => total + value, 0),
-      paid: validRows.reduce((total, row) => total + (parseMoney(byHeader(csv, row, ["paid"])) ?? 0), 0),
+      paid: validRows.reduce(
+        (total, row) => total + (parseMoney(byHeader(csv, row, ["paid"])) ?? 0),
+        0,
+      ),
       taxCategories: validRows.map((row) => {
         const description = byHeader(csv, row, ["description"]);
         const category = inferTaxCategory(description);
-        return inferred(category, 0.72, description, "Inferred from invoice line description.");
+        return inferred(
+          category,
+          0.72,
+          description,
+          "Inferred from invoice line description.",
+        );
       }),
     };
   }
 
   if (csv && kind === "payment_csv") {
-    const first = csv.rows.find((row) => /completed/i.test(byHeader(csv, row, ["status"]))) ?? csv.rows[0];
-    if (csv.rows.some((row) => /pending/i.test(byHeader(csv, row, ["status"])))) {
+    const first =
+      csv.rows.find((row) =>
+        /completed/i.test(byHeader(csv, row, ["status"])),
+      ) ?? csv.rows[0];
+    if (
+      csv.rows.some((row) => /pending/i.test(byHeader(csv, row, ["status"])))
+    ) {
       anomalies.push(
         anomaly(
           "pending_payment",
@@ -579,10 +707,30 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
     }
     if (first) {
       payment = {
-        currency: inferred(byHeader(csv, first, ["currency"]) || "USD", 0.84, "Currency column", "Detected payment currency."),
-        gross: inferred(parseMoney(byHeader(csv, first, ["gross"])) ?? 0, 0.88, "Gross column", "Detected gross payment."),
-        fee: inferred(parseMoney(byHeader(csv, first, ["fee"])) ?? 0, 0.86, "Fee column", "Detected payment fee."),
-        net: inferred(parseMoney(byHeader(csv, first, ["net"])) ?? 0, 0.88, "Net column", "Detected net payment."),
+        currency: inferred(
+          byHeader(csv, first, ["currency"]) || "USD",
+          0.84,
+          "Currency column",
+          "Detected payment currency.",
+        ),
+        gross: inferred(
+          parseMoney(byHeader(csv, first, ["gross"])) ?? 0,
+          0.88,
+          "Gross column",
+          "Detected gross payment.",
+        ),
+        fee: inferred(
+          parseMoney(byHeader(csv, first, ["fee"])) ?? 0,
+          0.86,
+          "Fee column",
+          "Detected payment fee.",
+        ),
+        net: inferred(
+          parseMoney(byHeader(csv, first, ["net"])) ?? 0,
+          0.88,
+          "Net column",
+          "Detected net payment.",
+        ),
         transactionId: inferred(
           byHeader(csv, first, ["transaction id"]),
           0.86,
@@ -594,21 +742,50 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
   }
 
   if (csv && kind === "lead_csv") {
-    const validRows = csv.rows.filter((row) => row.length === csv.headers.length);
+    const validRows = csv.rows.filter(
+      (row) => row.length === csv.headers.length,
+    );
     const first = validRows[0];
     if (first) {
       const rowEmail = byHeader(csv, first, ["email"]);
       const rowCompany = byHeader(csv, first, ["company"]);
       const rowBudget = parseMoney(byHeader(csv, first, ["budget"]));
-      lead.email = rowEmail ? inferred(rowEmail, 0.9, rowEmail, "Detected from Email column.") : lead.email;
-      lead.company = rowCompany ? inferred(rowCompany, 0.86, rowCompany, "Detected from Company column.") : lead.company;
-      lead.budgetMin = rowBudget ? inferred(rowBudget, 0.84, String(rowBudget), "Detected from Budget column.") : lead.budgetMin;
+      lead.email = rowEmail
+        ? inferred(rowEmail, 0.9, rowEmail, "Detected from Email column.")
+        : lead.email;
+      lead.company = rowCompany
+        ? inferred(
+            rowCompany,
+            0.86,
+            rowCompany,
+            "Detected from Company column.",
+          )
+        : lead.company;
+      lead.budgetMin = rowBudget
+        ? inferred(
+            rowBudget,
+            0.84,
+            String(rowBudget),
+            "Detected from Budget column.",
+          )
+        : lead.budgetMin;
       lead.budgetMax = lead.budgetMin;
       lead.name = byHeader(csv, first, ["name"])
-        ? inferred(byHeader(csv, first, ["name"]), 0.84, "Name column", "Detected from Name column.")
+        ? inferred(
+            byHeader(csv, first, ["name"]),
+            0.84,
+            "Name column",
+            "Detected from Name column.",
+          )
         : lead.name;
       lead.followUpAt = byHeader(csv, first, ["follow-up", "follow"])
-        ? inferred(findDate(byHeader(csv, first, ["follow-up", "follow"]))?.value ?? "", 0.72, "Follow-up column", "Detected follow-up date.")
+        ? inferred(
+            findDate(byHeader(csv, first, ["follow-up", "follow"]))?.value ??
+              "",
+            0.72,
+            "Follow-up column",
+            "Detected follow-up date.",
+          )
         : lead.followUpAt;
     }
     if (validRows.some((row) => !byHeader(csv, row, ["email"]))) {
@@ -654,7 +831,8 @@ export const analyzeIntake = (raw: string, options: AnalyzeOptions = {}): Intake
       : undefined;
 
   const partial = { lead, anomalies, kind };
-  const validCsvRows = csv?.rows.filter((row) => row.length === csv.headers.length).length ?? 0;
+  const validCsvRows =
+    csv?.rows.filter((row) => row.length === csv.headers.length).length ?? 0;
   const confidence = Math.min(
     0.98,
     estimateConfidence(partial) + (invoice || payment ? 0.16 : 0),
