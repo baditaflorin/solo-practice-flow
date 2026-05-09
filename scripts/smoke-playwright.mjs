@@ -3,6 +3,10 @@ import { chromium } from "playwright";
 
 const port = Number(process.env.PORT || 4273);
 const url = `http://127.0.0.1:${port}/solo-practice-flow/`;
+const realDataFixture = new URL(
+  "../test/fixtures/realdata/01-clean-email.txt",
+  import.meta.url,
+).pathname;
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -21,15 +25,8 @@ try {
   await page.getByText("Version").waitFor();
   await page.getByText("Commit").waitFor();
 
-  await page.getByLabel("Raw intake")
-    .fill(`From: Morgan Lee <morgan@example.com>
-Company: Atlas Labs
-
-Hi Florin,
-
-We need a private proposal to cash workflow and can budget $8,400.
-Please follow up on June 1.
-`);
+  await page.getByLabel("Load intake files").setInputFiles(realDataFixture);
+  await page.getByText(/loaded as plain text intake/i).waitFor();
   await page
     .getByText(/detected with/i)
     .first()
@@ -37,15 +34,15 @@ Please follow up on June 1.
   await page.getByRole("button", { name: "Apply" }).click();
   assert.equal(
     await page.getByPlaceholder("Company").inputValue(),
-    "Atlas Labs",
+    "Northstar Ops",
   );
   await page.getByRole("button", { name: "Capture" }).click();
-  await page.getByText("Atlas Labs").first().waitFor();
+  await page.getByText("Northstar Ops").first().waitFor();
 
   await page.getByRole("button", { name: "Generate proposal" }).click();
   await page.waitForFunction(() =>
     [...document.querySelectorAll("input")].some((input) =>
-      input.value.includes("Atlas Labs consulting sprint"),
+      input.value.includes("Northstar Ops consulting sprint"),
     ),
   );
   await page.getByRole("button", { name: "Draft contract" }).click();

@@ -1,9 +1,17 @@
-import { useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import {
   BadgeCheck,
   CalendarPlus,
   Check,
+  ClipboardPaste,
   Download,
+  FileUp,
   FileSignature,
   HandCoins,
   KeyRound,
@@ -33,6 +41,14 @@ import {
   renderProposalMarkdown,
   taxCategoryLabels,
 } from "./documents";
+import {
+  decodeShareHash,
+  detectIntakeFormat,
+  formatLoadedIntakeFiles,
+  sampleIntake,
+  type IntakeFormat,
+  type LoadedIntakeFile,
+} from "./io";
 import type {
   Contract,
   InferredValue,
@@ -148,6 +164,10 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   const [busy, setBusy] = useState("");
   const [backupPassphrase, setBackupPassphrase] = useState("");
   const [rawIntake, setRawIntake] = useState("");
+  const [intakeFormat, setIntakeFormat] = useState<IntakeFormat>(
+    detectIntakeFormat(""),
+  );
+  const [dragActive, setDragActive] = useState(false);
   const debugMode = useMemo(
     () => new URLSearchParams(window.location.search).has("debug"),
     [],
@@ -184,6 +204,20 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     [activeLead, activeProposal, activeContract, activeInvoice],
   );
 
+  const setIntakeText = (text: string, filename = "") => {
+    setRawIntake(text);
+    setIntakeFormat(detectIntakeFormat(text, filename));
+  };
+
+  useEffect(() => {
+    const decoded = decodeShareHash(window.location.hash);
+    if (decoded.ok && decoded.value) {
+      setRawIntake(decoded.value);
+      setIntakeFormat(detectIntakeFormat(decoded.value));
+      setToast("Shared intake loaded from URL");
+    }
+  }, []);
+
   const llmMutation = useMutation({
     mutationFn: (lead: Lead) =>
       generateProposalScopeWithLocalLlm(
@@ -193,6 +227,70 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         state.settings.localLlm.model,
       ),
   });
+
+  const loadIntakeFiles = async (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
+    setBusy("files");
+    try {
+      const loadedFiles: LoadedIntakeFile[] = await Promise.all(
+        selectedFiles.map(async (file) => ({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          text: await file.text(),
+        })),
+      );
+      const result = formatLoadedIntakeFiles(loadedFiles);
+      if (!result.ok || !result.value) {
+        setToast(result.detail ?? result.message);
+        return;
+      }
+      setIntakeText(result.value.text, loadedFiles[0]?.name ?? "");
+      setToast(result.value.summary);
+    } catch (reason) {
+      setToast(
+        reason instanceof Error
+          ? `File load failed: ${reason.message}`
+          : "File load failed. Try pasting the text into Raw intake.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const readClipboardIntoIntake = async () => {
+    if (!navigator.clipboard?.readText) {
+      setToast("Clipboard read is unavailable; paste into Raw intake instead");
+      return;
+    }
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setToast("Clipboard is empty; paste intake text manually");
+        return;
+      }
+      setIntakeText(text);
+      setToast("Clipboard intake loaded");
+    } catch {
+      setToast("Clipboard permission blocked; paste into Raw intake instead");
+    }
+  };
+
+  const loadSampleIntake = () => {
+    setIntakeText(sampleIntake, "sample-intake.txt");
+    setToast("Sample intake loaded");
+  };
+
+  const dropIntakeFiles = async (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setDragActive(false);
+    if (!event.dataTransfer.files.length) {
+      setToast("Drop text, CSV, HTML, Markdown, or JSON files");
+      return;
+    }
+    await loadIntakeFiles(event.dataTransfer.files);
+  };
 
   const saveLeadDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -721,15 +819,64 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
           </div>
 
           <form className="stack" onSubmit={saveLeadDraft}>
+            <div
+              className={classNames("drop-zone", dragActive && "active")}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={dropIntakeFiles}
+            >
+              <span>Drop intake files</span>
+              <small>Text, CSV, HTML, Markdown, or JSON</small>
+            </div>
+            <div className="button-row intake-actions">
+              <label className="secondary-button file-button">
+                <FileUp aria-hidden="true" size={16} />
+                Load files
+                <input
+                  aria-label="Load intake files"
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,.html,.htm,text/*,application/json,text/csv,text/html,text/markdown"
+                  onChange={(event) => {
+                    if (event.currentTarget.files?.length) {
+                      void loadIntakeFiles(event.currentTarget.files);
+                    }
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={readClipboardIntoIntake}
+              >
+                <ClipboardPaste aria-hidden="true" size={16} />
+                Clipboard
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={loadSampleIntake}
+              >
+                Sample
+              </button>
+            </div>
             <label>
               Raw intake
               <textarea
                 value={rawIntake}
-                onChange={(event) => setRawIntake(event.target.value)}
+                onChange={(event) => setIntakeText(event.target.value)}
                 placeholder="Paste an inquiry, DM, RFP excerpt, CSV rows, contract text, or payment export"
                 rows={5}
               />
             </label>
+            <p className="intake-meta">
+              {intakeFormat.label} · {intakeFormat.detail} ·{" "}
+              {confidencePercent(intakeFormat.confidence)}
+            </p>
             {intakeAnalysis ? (
               <SmartIntakeReview
                 analysis={intakeAnalysis}

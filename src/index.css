@@ -221,6 +221,10 @@ h3 {
   gap: 10px;
 }
 
+.button-row {
+  flex-wrap: wrap;
+}
+
 .panel-heading,
 .section-title {
   margin-bottom: 14px;
@@ -305,6 +309,48 @@ a:focus-visible {
   display: grid;
   gap: 8px;
   margin-top: 16px;
+}
+
+.drop-zone {
+  display: grid;
+  gap: 4px;
+  border: 1px dashed #9fb1a7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8faf5;
+  color: #4f5b54;
+  text-align: center;
+}
+
+.drop-zone.active {
+  border-color: #2f6a59;
+  background: #edf6f0;
+}
+
+.drop-zone span {
+  font-weight: 800;
+}
+
+.drop-zone small,
+.intake-meta {
+  color: #657169;
+  font-size: 0.76rem;
+}
+
+.intake-actions {
+  align-items: stretch;
+}
+
+.file-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .lead-card {
