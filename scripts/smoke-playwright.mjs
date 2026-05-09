@@ -24,9 +24,12 @@ try {
   );
   await page.getByText("Version").waitFor();
   await page.getByText("Commit").waitFor();
+  await page.getByText("Ready").waitFor();
 
   await page.getByLabel("Load intake files").setInputFiles(realDataFixture);
-  await page.getByText(/loaded as plain text intake/i).waitFor();
+  await page.waitForFunction(() =>
+    document.querySelector("textarea")?.value.includes("Northstar Ops"),
+  );
   await page
     .getByText(/detected with/i)
     .first()

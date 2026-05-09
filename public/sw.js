@@ -1,4 +1,4 @@
-const CACHE_NAME = "solo-practice-flow-v0.2.0";
+const CACHE_NAME = "solo-practice-flow-v0.3.0";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
