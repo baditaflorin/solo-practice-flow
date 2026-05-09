@@ -8,9 +8,9 @@ Repository: https://github.com/baditaflorin/solo-practice-flow
 
 ## What Was Built
 
-Solo Practice Flow v0.1.0 is a Mode A GitHub Pages app for solo freelance operations. It includes lead capture, proposal generation with optional local LLM support, contract drafting, Ed25519 signing and verification, invoice creation, payment tracking, tax-categorized CSV export, DuckDB-WASM tax report export, age-encrypted JSON backup, Pandoc-WASM HTML export through a pinned lazy public module, ICS follow-up reminders, IndexedDB/Yjs local persistence, PWA files, local hooks, tests, smoke checks, ADRs, and deployment docs.
+Solo Practice Flow v0.1.0 is a Mode A GitHub Pages app for solo freelance operations. It includes lead capture, proposal generation with optional local LLM support, contract drafting, Ed25519 signing and verification, invoice creation, invoice payment-status tracking, tax-categorized CSV export, DuckDB-WASM tax report export, age-encrypted JSON backup, Pandoc-WASM HTML export through a pinned lazy public module, ICS follow-up reminders, IndexedDB/Yjs local persistence, PWA files, local hooks, tests, smoke checks, ADRs, and deployment docs.
 
-The live app exposes the repository link, PayPal support link, version, and latest public `main` commit.
+The live app exposes the repository link, PayPal support link, version, and build-time commit.
 
 ## Was Mode A Correct?
 
@@ -36,13 +36,13 @@ The installed future Vite/Rolldown toolchain handled the app well, but its WASM 
 
 ## Accepted Tech Debt
 
-The app has no import flow for encrypted backups yet, only export. Local LLM support targets Ollama-style `/api/generate` endpoints and does not include a model manager. The DuckDB report uses the jsDelivr bundle helper, so the plain CSV export is the offline fallback. The UI is a dense single-screen workspace; deeper navigation can wait until the workflow grows.
+At v0.1.0 the app had no import flow for encrypted backups, only export. Local LLM support targets Ollama-style `/api/generate` endpoints and does not include a model manager. The DuckDB report uses the jsDelivr bundle helper, so the plain CSV export is the offline fallback. The UI is a dense single-screen workspace; deeper navigation can wait until the workflow grows.
 
 ## Next Improvements
 
-1. Add backup restore, including age-encrypted restore with schema migration.
-2. Add reusable proposal and contract template packs by practice type.
-3. Add richer invoice/payment history with partial payments, receipts, and quarterly tax views.
+1. Add reusable proposal and contract template packs by practice type.
+2. Add richer invoice/payment history with partial payments, receipts, and quarterly tax views.
+3. Split the dense single-screen workspace once the workflow needs deeper navigation.
 
 ## Time
 
