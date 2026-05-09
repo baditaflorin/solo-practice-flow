@@ -1,7 +1,7 @@
 {
   "name": "Solo Practice Flow",
   "short_name": "Practice Flow",
-  "description": "Local-first freelance CRM for leads, proposals, contracts, invoices, payments, and tax-ready exports.",
+  "description": "Local-first freelance CRM for leads, proposals, contracts, invoices, payment-status review, and tax-ready exports.",
   "start_url": "/solo-practice-flow/",
   "scope": "/solo-practice-flow/",
   "display": "standalone",
