@@ -26,6 +26,7 @@ import {
   formatMoney,
   invoiceOutstanding,
   invoiceTotal,
+  overdueSummary,
   statusCounts,
   taxSummary,
 } from "./calculations";
@@ -213,6 +214,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
     : undefined;
 
   const counts = useMemo(() => statusCounts(state), [state]);
+  const overdue = useMemo(() => overdueSummary(state), [state]);
   const taxRows = useMemo(() => taxSummary(state), [state]);
   const flowIssues = useMemo(
     () =>
@@ -968,6 +970,18 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
         <Metric label="Contracts" value={counts.contracts} />
         <Metric label="Invoices" value={counts.invoices} />
         <Metric label="Paid" value={counts.paidInvoices} />
+        <Metric
+          label="Overdue"
+          value={
+            overdue.count === 0
+              ? "0"
+              : `${overdue.count} · ${formatMoney(overdue.totalDue, state.settings.currency)}${
+                  overdue.worstDaysOverdue > 0
+                    ? ` · worst ${overdue.worstDaysOverdue}d`
+                    : ""
+                }`
+          }
+        />
       </section>
 
       <section className="workspace-grid" aria-busy={!ready}>
@@ -1766,7 +1780,7 @@ export function PracticeApp({ version, commit }: PracticeAppProps) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="metric-card">
       <span>{label}</span>

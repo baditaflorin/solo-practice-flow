@@ -21,6 +21,59 @@ export const invoiceTotal = (invoice: Invoice) =>
 export const invoiceOutstanding = (invoice: Invoice) =>
   Math.max(invoiceTotal(invoice) - invoice.amountPaid, 0);
 
+/**
+ * Days until the invoice's due date relative to `now`. Negative when the
+ * invoice is past due. Returns NaN when the due date is malformed.
+ */
+export const invoiceDaysUntilDue = (
+  invoice: Invoice,
+  now: Date = new Date(),
+) => {
+  if (!invoice.dueDate) return Number.NaN;
+  const due = new Date(`${invoice.dueDate}T23:59:59`);
+  if (Number.isNaN(due.getTime())) return Number.NaN;
+  const millisPerDay = 86_400_000;
+  return Math.floor((due.getTime() - now.getTime()) / millisPerDay);
+};
+
+/**
+ * An invoice is overdue when its outstanding balance is positive, the due
+ * date has passed, and it hasn't been marked paid. Draft invoices are
+ * never overdue — they haven't been sent yet. The prior CRM only treated
+ * an invoice as overdue when the user manually flipped the status dropdown
+ * to "overdue", so this fills the dormant "automated past-due alert" that
+ * a real billing flow needs.
+ */
+export const invoiceIsOverdue = (invoice: Invoice, now: Date = new Date()) => {
+  if (invoice.status === "paid") return false;
+  if (invoice.status === "draft") return false;
+  if (invoiceOutstanding(invoice) <= 0) return false;
+  const daysLeft = invoiceDaysUntilDue(invoice, now);
+  return Number.isFinite(daysLeft) && daysLeft < 0;
+};
+
+export const overdueInvoices = (state: PracticeState, now: Date = new Date()) =>
+  state.invoices.filter((invoice) => invoiceIsOverdue(invoice, now));
+
+export const overdueSummary = (
+  state: PracticeState,
+  now: Date = new Date(),
+) => {
+  const overdue = overdueInvoices(state, now);
+  const totalDue = overdue.reduce(
+    (total, invoice) => total + invoiceOutstanding(invoice),
+    0,
+  );
+  return {
+    count: overdue.length,
+    totalDue,
+    worstDaysOverdue: overdue.reduce((worst, invoice) => {
+      const days = -invoiceDaysUntilDue(invoice, now);
+      return Number.isFinite(days) && days > worst ? days : worst;
+    }, 0),
+  };
+};
+
 export const addDays = (isoDate: string, days: number) => {
   const date = new Date(`${isoDate}T00:00:00`);
   date.setDate(date.getDate() + days);
